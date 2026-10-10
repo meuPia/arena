@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.vercel/
+.env*
+__pycache__/
+.pytest_cache/
+.venv/
+
+# Códigos reais das equipes: NUNCA versionar (use a env ARENA_EQUIPES na Vercel)
+arena/equipes.json
+
+# Ignore macOS system files
+.DS_Store
+**/.DS_Store
