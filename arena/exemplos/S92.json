@@ -1,0 +1,17 @@
+{
+  "codigo": "S92",
+  "id": "exemplo_s92",
+  "modulo": "Checksum",
+  "problemaTecnico": "Soma dos dígitos",
+  "nivel": "Silver",
+  "pontos": 20,
+  "formato": "implementar",
+  "tempoEsperado": "10–15 min",
+  "inspiradoEm": "Exemplo do meuPiá Challenge",
+  "titulo": "S92 — Checksum (Soma dos dígitos)",
+  "descricao": "### 🟡 SILVER — 20 pts · Desafio de exemplo\n\n> Desafio **fictício** para desenvolvimento e testes. Os desafios reais do evento ficam só no banco.\n\n**Situação**\nO verificador de integridade usa a soma dos dígitos como checksum simples.\n\n**Objetivo técnico**\nComplete `soma_digitos(n)`: `n` é um inteiro de `0` a `999999999999`. Devolva a soma dos seus dígitos.\n\n**Exemplos**\n| Entrada | Saída |\n|---|---|\n| `123` | `6` |\n| `0` | `0` |\n| `9999` | `36` |\n\n**Dica de dialeto:** `n % 10` dá o último dígito e `piso(n / 10)` remove o último dígito.\n\n**Como pontua**\n- A submissão só é **aceita** se passar em **todos os testes de exemplo** (os mesmos do botão Rodar).\n- O juiz também roda uma bateria de **testes extras**, maior e mais difícil. Os pontos são proporcionais aos extras aprovados (\"N de M\"), e o módulo fica **completo** com 100%.\n- Vale a melhor submissão da equipe, e dá para reenviar para melhorar. No empate, vence o **menor código** (comentários e indentação não contam).",
+  "codigoInicial": "algoritmo \"S92_Checksum\"\n\nvar\n    s : inteiro\n\nfuncao soma_digitos(n)\n    s <- 0\n    // ❌ SOME OS DÍGITOS AQUI\n    retorne s\nfim_funcao\n\ninicio\n    escreva(soma_digitos(123))\nfim_algoritmo\n",
+  "testesPublicos": "esperar_igual(soma_digitos(123), 6, \"Exemplo 1\")\nesperar_igual(soma_digitos(0), 0, \"Exemplo 2\")\nesperar_igual(soma_digitos(9999), 36, \"Exemplo 3\")",
+  "testesExtras": "esperar_igual(soma_digitos(1), 1, \"extra 1\")\nesperar_igual(soma_digitos(10), 1, \"extra 2\")\nesperar_igual(soma_digitos(100000), 1, \"extra 3\")\nesperar_igual(soma_digitos(999999999999), 108, \"extra 4\")\nesperar_igual(soma_digitos(101010101010), 6, \"extra 5\")\nesperar_igual(soma_digitos(676327642560), 54, \"extra 6\")\nesperar_igual(soma_digitos(390771619855), 61, \"extra 7\")\nesperar_igual(soma_digitos(1825384), 31, \"extra 8\")\nesperar_igual(soma_digitos(7), 7, \"extra 9\")\nesperar_igual(soma_digitos(90), 9, \"extra 10\")\nesperar_igual(soma_digitos(55555), 25, \"extra 11\")\nesperar_igual(soma_digitos(123456789012), 48, \"extra 12\")\nesperar_igual(soma_digitos(260), 8, \"extra 13\")\nesperar_igual(soma_digitos(500000000000), 5, \"extra 14\")\nesperar_igual(soma_digitos(5821720559), 44, \"extra 15\")",
+  "gabarito": "algoritmo \"S92_Checksum\"\n\nvar\n    s : inteiro\n\nfuncao soma_digitos(n)\n    s <- 0\n    enquanto n > 0 faça\n        s <- s + n % 10\n        n <- piso(n / 10)\n    fim_enquanto\n    retorne s\nfim_funcao\n\ninicio\n    escreva(soma_digitos(123))\nfim_algoritmo\n"
+}

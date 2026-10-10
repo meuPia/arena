@@ -1,0 +1,2 @@
+# Deve ser a MESMA versão que o navegador usa (src/engine/wasm.js -> `version`).
+meupia-core==1.3.0

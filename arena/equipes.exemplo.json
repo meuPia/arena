@@ -1,0 +1,14 @@
+[
+  {
+    "id": "equipe1",
+    "nome": "Equipe 1",
+    "codigo": "TROQUE-ESTE-CODIGO-1",
+    "integrantes": ["Ana (2º)", "Bruno (4º)", "Carla (6º)", "Diego (2º)", "Eva (4º)"]
+  },
+  {
+    "id": "equipe2",
+    "nome": "Equipe 2",
+    "codigo": "TROQUE-ESTE-CODIGO-2",
+    "integrantes": ["Fábio (6º)", "Gabi (2º)", "Hugo (4º)", "Íris (6º)", "João (2º)"]
+  }
+]

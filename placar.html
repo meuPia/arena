@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Placar · meuPiá Challenge</title>
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="stylesheet" href="/src/arena/arena.css" />
+  </head>
+  <body class="arena-pagina arena-telao">
+    <header class="arena-placar-topo">
+      <div>
+        <p class="arena-sobretitulo">meuPiá Challenge · Univille</p>
+        <h1 id="evento">CODE CHALLENGE — SYSTEM RECOVERY</h1>
+      </div>
+      <div class="arena-kpi grande"><span id="relogio">--:--</span><small id="relogio-rotulo">restante</small></div>
+    </header>
+    <p id="faixa-freeze" class="arena-freeze hidden">❄️ PLACAR CONGELADO — as equipes continuam submetendo. O resultado final será revelado no encerramento.</p>
+    <table class="arena-tabela">
+      <thead>
+        <tr><th>#</th><th>Equipe</th><th>Bronze</th><th>Silver</th><th>Gold</th><th>Extra</th><th>Pontos</th><th title="Módulos com 100% dos testes extras">Completos</th><th title="Soma dos caracteres das melhores soluções completas (menor vence o desempate)">Caracteres</th></tr>
+      </thead>
+      <tbody id="linhas"></tbody>
+    </table>
+    <p class="arena-legenda">● completo (100% dos testes extras) · ◐ aceito parcial · ○ não enviado — desempate: completos, menor código, quem chegou antes</p>
+    <section id="admin" class="arena-admin hidden">
+      <h2>Submissões (admin)</h2>
+      <table class="arena-tabela pequena">
+        <thead><tr><th>Hora</th><th>Equipe</th><th>Módulo</th><th>Tent.</th><th>Resultado</th><th>Exemplos</th><th>Extras</th><th>Pts</th><th>Car.</th><th>Participantes</th></tr></thead>
+        <tbody id="subs"></tbody>
+      </table>
+    </section>
+    <script type="module" src="/src/arena/placar.js"></script>
+  </body>
+</html>

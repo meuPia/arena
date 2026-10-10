@@ -1,0 +1,41 @@
+## 1. Base: armazenamento, HTTP e configuração
+
+- [ ] 1.1 Adicionar `hget` e `hdel` em `SupabaseRest`, `RedisRest` e `Local` (e cobrir no contrato de `tests/test_store.py`), e as chaves `k_equipes`, `k_participantes`, `k_usuarios`, `k_ajustes` e `k_auditoria` em `api/_lib/store.py` (D6). Verificar com um teste que grava, lê e apaga um campo pelo `Local`.
+- [ ] 1.2 Estender `api/_lib/web.py` (D5) com: `redirecionar(url, cookies)`, leitura de cookies, `definir_cookie` (com `Secure` fora de `localhost`), exigência de JSON e checagem de `Origin` em POST, e `banca()` (cookie de sessão ou `X-Arena-Token`). Verificar com testes unitários: POST com `Origin` de outro host é recusado, POST sem JSON é recusado e o cookie em `localhost` sai sem `Secure`.
+- [ ] 1.3 Ler as identidades do root de `ARENA_ROOT` (JSON com `google`, `microsoft`, `github`; ausente = sem root; inválido = erro) em `auth.root()`, sem nenhuma identidade real em arquivos do repositório. Verificar com testes usando identidades fictícias e com a varredura de e-mails do 6.1.
+
+## 2. Autenticação da banca
+
+- [ ] 2.1 Criar `api/_lib/auth.py` com a tabela de provedores, `provedores_configurados()`, `url_autorizacao(provedor, base_url)` com `state` assinado e nonce, e `concluir(provedor, code, state, nonce_cookie, base_url)`, que troca o código e devolve identidades normalizadas (D2, D3, D4). As chamadas HTTP passam por `_http`, que os testes substituem. Verificar com testes que simulam as respostas dos três provedores: Google com `email_verified` falso é recusado, `aud` errado é recusado, GitHub só usa e-mails verificados, Microsoft usa `preferred_username`, e `state` forjado, expirado ou com nonce diferente é recusado.
+- [ ] 2.2 Implementar `auth.papel(identidades, db)` (root só pela identidade do provedor; perfil por `email:` ou `github:`) e o cookie de sessão (emitir e ler, com expiração de 12 h) (D4, D5). Verificar com testes (identidades fictícias via `ARENA_ROOT`): root pela Microsoft e pelo GitHub, o mesmo e-mail do root vindo do GitHub com outro login não é root, pessoa sem perfil devolve `None`, e rebaixamento no banco vale na leitura seguinte.
+- [ ] 2.3 Criar `api/oauth_inicio.py`, `api/oauth_retorno.py` e `api/sessao.py` (D1, D11): 302 com o cookie `arena_oauth`, retorno com o cookie de sessão ou `?erro=`, `GET /api/sessao` com usuário, provedores e o sinal de emergência, e `POST sair`. Logins concluídos e recusados vão para a auditoria. Verificar com testes que chamam os handlers via `servidor_local` (ou os casos de uso) com `_http` simulado: login de um juiz cadastrado cria a sessão, e uma pessoa não cadastrada volta com `?erro=nao_autorizado` e fica na auditoria.
+
+## 3. Equipes, participantes e token da equipe
+
+- [ ] 3.1 Mover a geração de código para `arena.gerar_codigo` (com `secrets`, alfabeto sem ambíguos e unicidade) e fazer `scripts/gerar_equipes.py` usá-la. Verificar com um teste de formato e unicidade e rodando `python3 scripts/gerar_equipes.py 2` num diretório temporário.
+- [ ] 3.2 Reescrever `arena.equipes(db)`: banco primeiro, com integrantes vindos dos participantes como `Nome (semestre)`, e `ARENA_EQUIPES` ou o arquivo (com `versao: 0`) quando o banco está vazio. Atualizar `equipe_por_codigo` e todos os chamadores em `servico` para passar `db` (D6). Verificar com testes: sem equipes no banco, a fonte antiga vale; com equipes no banco, só elas valem.
+- [ ] 3.3 Token da equipe com versão: `emitir_token(eid, versao)`, `ler_token` aceitando o formato antigo como versão 0, e `Base.equipe_id()` conferindo existência e versão (D6). Verificar com testes: token antigo continua válido, depois de regenerar o código o token devolve 401, e excluir a equipe também devolve 401.
+
+## 4. Casos de uso do painel
+
+- [ ] 4.1 Criar `api/_lib/admin.py` com `PERMISSOES`, `executar(acao, autor, dados, db)` e `auditar` (D8). Verificar com um teste: um juiz chamando uma ação de admin recebe 403 sem gravar nada, e toda ação permitida gera uma entrada na auditoria sem código-fonte nem código de acesso.
+- [ ] 4.2 Ações de equipe: listar (com código, integrantes, pontos, completos, submissões e última submissão), criar (com código gerado, nome único com até 40 caracteres), editar o nome, excluir (recusada com submissões), regenerar o código (`versao += 1`) e importar (recusada se o banco já tiver equipes). Verificar com testes, incluindo o login pelo código novo e a recusa do antigo.
+- [ ] 4.3 Ações de participante: listar, criar, editar (inclusive trocar de equipe) e remover, com validação de nome, semestre e equipe existente. Verificar com um teste em que o participante aparece em `servico.missao(...)["integrantes"]` como `Nome (semestre)`.
+- [ ] 4.4 Ações de perfil: listar (com o root somente leitura), criar, editar e remover `admin`/`juiz`, com e-mail único e GitHub único. Qualquer ação sobre o root é recusada. Verificar com testes.
+- [ ] 4.5 Id das submissões: `servico.submeter` grava `id` em `aceitas` e no log (D7). Ações `submissoes` (log com pontos efetivos e ajuste) e `submissao` (com código-fonte). Verificar com um teste em que o id é o mesmo nos dois registros e o log mostra o ajuste.
+- [ ] 4.6 Ajuste de pontos: `arena.aplicar_ajustes` (pura), `servico._aceitas` aplicando os ajustes e as ações `ajustar`/`desfazer_ajuste`, com validação da faixa, do motivo e de submissão aceita (D7). Verificar com testes: ajustar a completa para 0 faz a parcial virar a melhor (7 pts, não completa), o ajuste pós-freeze aparece no placar congelado, desfazer volta ao cálculo do juiz, 12 pts em B01 é recusado e motivo vazio é recusado.
+- [ ] 4.7 `api/admin.py` (GET e POST de ações) e a ação `placar` (placar vivo). Remover `?admin=` e o log de `api/placar.py` (D9). Verificar com testes: `/api/placar` durante o freeze continua congelado mesmo com o cookie de admin, e `acao=placar` mostra o vivo para o juiz.
+
+## 5. Interface
+
+- [ ] 5.1 Extrair a tabela do placar para `src/arena/placar-tabela.js`, e tirar o log e o parâmetro `admin` de `src/arena/placar.js` e `placar.html`. Verificar no `npm run local` que `/placar.html` mostra só o placar.
+- [ ] 5.2 Criar `admin.html` e `src/arena/admin.js`, e registrar a página no `vite.config.js`. A tela de login tem os provedores configurados, o campo de token de emergência e as mensagens de `?erro=`. As abas aparecem conforme o papel, com nome, papel e botão sair. Verificar no `npm run local` com o token de emergência (`admin`): aparecem as 6 abas.
+- [ ] 5.3 Abas Equipes (listagem, criar, editar, excluir, regenerar código com confirmação, importar e versão para impressão) e Participantes. Verificar no `npm run local`: criar uma equipe, entrar com o código dela em `/` numa aba anônima, regenerar o código e ver a sessão antiga cair.
+- [ ] 5.4 Abas Perfis (root somente leitura), Submissões (filtros, modal com o código-fonte e formulário de ajuste ou desfazer), Placar real e Auditoria. Verificar no `npm run local`: ajustar uma submissão e ver o placar real e o painel da equipe refletirem a mudança, e a auditoria registrar o ajuste.
+- [ ] 5.5 Conferir que todo dado vindo do banco é inserido com `escapar()` ou `textContent`. Verificar cadastrando uma equipe e um participante com `<img src=x onerror=alert(1)>` no nome e confirmando que nada executa.
+
+## 6. Documentação e verificação
+
+- [ ] 6.1 Atualizar `CLAUDE.md` (arquitetura com `admin.html` e as rotas novas, regras de acesso e papéis, root via `ARENA_ROOT`, variáveis `OAUTH_*`, `ARENA_URL` e `ADMIN_TOKEN` como emergência, e equipes no banco) e `README.md` (como registrar os apps OAuth com a URL de retorno e o passo a passo do D. Migration Plan). Verificar relendo as seções e conferindo que `/placar.html?admin=` não aparece mais como caminho do admin.
+- [ ] 6.2 Rodar `npm test` e `npm run validar`, os dois passando.
+- [ ] 6.3 Ensaio no `npm run local` com o token de emergência: importar as equipes de exemplo, cadastrar participantes e um juiz, submeter pela Equipe 1, ajustar a submissão, conferir o placar público vs. o real, regenerar um código e ler a auditoria. Se houver credenciais OAuth de teste para `localhost`, fazer também um login real em pelo menos um provedor. Registrar o resultado no PR.

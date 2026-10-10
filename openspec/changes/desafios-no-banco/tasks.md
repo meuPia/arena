@@ -1,0 +1,29 @@
+## 1. Carregamento do banco e exemplos
+
+- [x] 1.1 Acrescentar `hget` nas três implementações do store (se o `painel-administrativo` ainda não tiver feito isso) e as chaves `k_desafios()`, `k_segredos()` e `k_validacao()` com `ARENA_CONTEUDO` (D1). Verificar com o contrato de `tests/test_store.py` cobrindo `hget` e com um teste em que as chaves não mudam com `ARENA_PREFIXO`.
+- [x] 1.2 Criar `arena/exemplos/` com B91, B92, B93, S91, S92, G91 e X91 no formato de exportação (gabarito, código inicial incompleto, 3 exemplos, 15 extras e o bloco "Como pontua") (D3). Verificar com um teste de formato e com a validação do 1.4.
+- [x] 1.3 Reescrever `arena.desafios(db)` (com cache de 30 s e exemplos só com `Local`), criar `arena.segredos(db, codigo)` e `arena.limpar_cache()`, e fazer `servico` passar `db` e carregar os segredos só em `submeter` (D2, D3). Verificar com testes: com `Local` vazio aparecem os exemplos; com um store de outro tipo vazio não aparece nada; `missoes`/`missao` não chamam `segredos` (espião); a resposta da missão não tem `testesExtras` nem `gabarito`.
+- [x] 1.4 Mover a validação para `api/_lib/validacao.py` e reescrever `scripts/validar_desafios.py` para validar o store de `store.abrir()` (D4). Verificar com `npm run validar` sem banco: os 7 exemplos dão OK.
+- [x] 1.5 Adaptar `tests/test_arena.py` e `tests/test_juiz.py` aos exemplos: trocar B01, B02, S01 e G01 pelos códigos 9x, trocar `gabarito()` pela leitura do exemplo e tirar os casos de teste copiados de B01 de `test_juiz.py`. Verificar com `npm test` passando sem ler `arena/desafios/` (renomeando a pasta temporariamente no teste local).
+
+## 2. Importação e backup
+
+- [x] 2.1 Criar `api/_lib/conteudo.py` (público) e, **no repositório privado**, `scripts/importar_desafios.py`: lê uma pasta no formato antigo (`<COD>.json` + `<COD>.por` ou `../gabaritos/`) ou um export, valida (D4), mostra criar/substituir/inválido e só grava com `--gravar`. `--exportar <arquivo>` gera o JSON do D5 a partir do store (D5). Verificar com testes sobre o `Local`: importar os exemplos, exportar, reimportar o mesmo conteúdo sem mudança, e um desafio inválido não é gravado.
+- [ ] 2.2 Criar as tabelas no Supabase com `supabase/arena.sql` (só estrutura: `arena_hash`, `arena_lista`, `arena_hincrby` e RLS). Este repositório MUST NOT ter migration nem seed que popule desafios reais: os 9 desafios são carregados pelo script `scripts/popular_desafios.py` do repositório privado `challenge`, que valida com o juiz, grava e exporta o backup fora do repositório. Verificar com as tabelas criadas e o contrato `ARENA_TESTE_SUPABASE=1 pytest tests/test_store.py` passando, e com `grep` confirmando que `supabase/` não tem nenhum `insert` de dados.
+
+## 3. Repositório sem conteúdo secreto
+
+- [x] 3.1 Criar, **no repositório privado**, `scripts/varrer_vazamento.py --referencia <export.json|pasta> [--raiz ../arena]` (D7). Verificar com um teste que injeta uma linha de extra num arquivo temporário versionado e espera falha.
+- [x] 3.2 Remover `arena/desafios/`, `arena/gabaritos/`, `arena/extras_base/` e `scripts/gerar_testes_extras.py`, e tirar as referências a eles de scripts, testes e `package.json`. Rodar a varredura com os desafios do repositório privado (ou o backup do `popular_desafios.py`) como referência. Verificar com a varredura sem achados e com `npm test` e `npm run validar` passando.
+- [x] 3.3 Atualizar `CLAUDE.md` (a regra de ouro passa a dizer "nunca chegam ao navegador das equipes", desafios no banco, `ARENA_CONTEUDO`, exemplos, backup obrigatório) e `README.md` (como importar, exportar e validar; os desafios reais não estão no repositório). Verificar relendo e confirmando que nenhuma instrução aponta para `arena/desafios/*.json`.
+
+## 4. Desafios no painel (depende de `painel-administrativo`)
+
+- [ ] 4.1 Ações `desafios`, `desafio`, `salvar_desafio`, `validar_desafio`, `validar_todos`, `exportar_desafios` e `importar_desafios` em `api/_lib/admin.py`, só para admin, com auditoria dos campos alterados sem conteúdo, 409 ao editar um desafio com tentativas sem confirmação, e limpeza do cache (D6). Verificar com testes: juiz recebe 403 em todas, salvar exige o formato dos testes, a auditoria não contém o texto dos extras, importar tem prévia e confirmação.
+- [ ] 4.2 Aba Desafios no `admin.js`: tabela, editor com prévia do enunciado, validar formulário, salvar (com confirmação quando há tentativas), validar todos, exportar e importar (com prévia) (D6). Verificar no `npm run local`: criar B94, vê-lo no painel da equipe em até 30 s, validar, exportar e reimportar.
+
+## 5. Publicação do código aberto
+
+- [ ] 5.1 Preparar a árvore pública: rodar a varredura de novo, revisar `openspec/` e a documentação em busca de conteúdo de desafio real, e rodar `npm test` e `npm run validar`. Verificar com a lista de arquivos (`git ls-files`) revisada.
+- [ ] 5.2 Com a confirmação do usuário (são ações no GitHub): renomear `meuPia/challenge` para `meuPia/challenge-privado`, criar `meuPia/challenge` público, fazer um commit órfão com a árvore limpa e o push (D7). Verificar abrindo o repositório público e conferindo que ele tem um único commit e nenhum arquivo dos desafios reais.
+- [ ] 5.3 Criar o projeto na Vercel Hobby a partir do repositório público, com Node.js 24, região `gru1` e as variáveis `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`, `ARENA_SECRET`, `ADMIN_TOKEN` e `ARENA_PREFIXO=ensaio1`. Verificar abrindo o deploy e entrando com uma equipe: as missões vêm do banco.

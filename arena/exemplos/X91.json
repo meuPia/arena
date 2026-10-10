@@ -1,0 +1,17 @@
+{
+  "codigo": "X91",
+  "id": "exemplo_x91",
+  "modulo": "Replicação",
+  "problemaTecnico": "Sequência de Fibonacci",
+  "nivel": "Extra",
+  "pontos": 50,
+  "formato": "implementar",
+  "tempoEsperado": "15–20 min",
+  "inspiradoEm": "Exemplo do meuPiá Challenge",
+  "titulo": "X91 — Replicação (Sequência de Fibonacci)",
+  "descricao": "### 🔴 EXTRA — 50 pts · Desafio de exemplo\n\n> Desafio **fictício** para desenvolvimento e testes. Os desafios reais do evento ficam só no banco.\n\n**Situação**\nO replicador de dados cresce como a sequência de Fibonacci a cada ciclo.\n\n**Objetivo técnico**\nComplete `fibonacci(n)`: `n` vai de `0` a `150`. Devolva o n-ésimo termo, com `fibonacci(0) = 0` e `fibonacci(1) = 1`.\n\n**Exemplos**\n| Entrada | Saída |\n|---|---|\n| `0` | `0` |\n| `1` | `1` |\n| `10` | `55` |\n\n**Como pontua**\n- A submissão só é **aceita** se passar em **todos os testes de exemplo** (os mesmos do botão Rodar).\n- O juiz também roda uma bateria de **testes extras**, maior e mais difícil. Os pontos são proporcionais aos extras aprovados (\"N de M\"), e o módulo fica **completo** com 100%.\n- Vale a melhor submissão da equipe, e dá para reenviar para melhorar. No empate, vence o **menor código** (comentários e indentação não contam).",
+  "codigoInicial": "algoritmo \"X91_Replicacao\"\n\nvar\n    i, a, b, t : inteiro\n\nfuncao fibonacci(n)\n    a <- 0\n    b <- 1\n    // ❌ AVANCE A SEQUÊNCIA AQUI\n    retorne b\nfim_funcao\n\ninicio\n    escreva(fibonacci(10))\nfim_algoritmo\n",
+  "testesPublicos": "esperar_igual(fibonacci(0), 0, \"Exemplo 1\")\nesperar_igual(fibonacci(1), 1, \"Exemplo 2\")\nesperar_igual(fibonacci(10), 55, \"Exemplo 3\")",
+  "testesExtras": "esperar_igual(fibonacci(2), 1, \"extra 1\")\nesperar_igual(fibonacci(3), 2, \"extra 2\")\nesperar_igual(fibonacci(5), 5, \"extra 3\")\nesperar_igual(fibonacci(20), 6765, \"extra 4\")\nesperar_igual(fibonacci(30), 832040, \"extra 5\")\nesperar_igual(fibonacci(50), 12586269025, \"extra 6\")\nesperar_igual(fibonacci(70), 190392490709135, \"extra 7\")\nesperar_igual(fibonacci(90), 2880067194370816120, \"extra 8\")\nesperar_igual(fibonacci(93), 12200160415121876738, \"extra 9\")\nesperar_igual(fibonacci(100), 354224848179261915075, \"extra 10\")\nesperar_igual(fibonacci(120), 5358359254990966640871840, \"extra 11\")\nesperar_igual(fibonacci(140), 81055900096023504197206408605, \"extra 12\")\nesperar_igual(fibonacci(149), 6161314747715278029583501626149, \"extra 13\")\nesperar_igual(fibonacci(150), 9969216677189303386214405760200, \"extra 14\")\nesperar_igual(fibonacci(77), 5527939700884757, \"extra 15\")",
+  "gabarito": "algoritmo \"X91_Replicacao\"\n\nvar\n    i, a, b, t : inteiro\n\nfuncao fibonacci(n)\n    a <- 0\n    b <- 1\n    para i de 1 até n faça\n        t <- a + b\n        a <- b\n        b <- t\n    fim_para\n    retorne a\nfim_funcao\n\ninicio\n    escreva(fibonacci(10))\nfim_algoritmo\n"
+}

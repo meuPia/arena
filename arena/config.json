@@ -1,0 +1,21 @@
+{
+  "evento": "CODE CHALLENGE — SYSTEM RECOVERY",
+  "inicio": "2026-10-21T19:10:00-03:00",
+  "fim": "2026-10-21T21:50:00-03:00",
+  "freezeMinutos": 20,
+  "cooldown": {
+    "tentativasLivres": 3,
+    "segundos": 180
+  },
+  "pontuacao": {
+    "modo": "proporcional"
+  },
+  "desbloqueioConta": "aceito",
+  "niveis": ["Bronze", "Silver", "Gold", "Extra"],
+  "desbloqueio": {
+    "Bronze": {},
+    "Silver": {"Bronze": 2},
+    "Gold": {"Bronze": 2, "Silver": 2},
+    "Extra": {"Gold": 1}
+  }
+}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code Arena · meuPiá Challenge</title>
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/arena/arena.css" />
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min.js"></script>
+  </head>
+  <body>
+
+    <header>
+      <h2 class="logo-container">
+        <img src="/logo.svg" alt="Logo meuPiá" class="site-logo" /> 
+        meuPiá Challenge
+        <a href="/" id="voltar-painel" class="arena-voltar" title="Voltar ao painel de missões"><i data-lucide="layout-grid"></i> Missões</a>
+      </h2>
+      
+      <div class="actions">
+        <div class="action-group">
+          <button id="open-btn" title="Abrir Arquivo"><i data-lucide="folder-open"></i></button>
+          <button id="save-btn" title="Salvar Arquivo"><i data-lucide="save"></i></button>
+          <div class="divider"></div>
+          <button id="undo-btn" title="Desfazer"><i data-lucide="undo"></i></button>
+          <button id="redo-btn" title="Refazer"><i data-lucide="redo"></i></button>
+          <div class="divider"></div>
+          <button id="reset-btn" title="Limpar Tudo"><i data-lucide="trash-2"></i></button>
+        </div>
+
+        <div class="action-group">
+          <button id="theme-btn" title="Alternar Tema"><i data-lucide="sun"></i></button>
+          <button id="settings-btn" title="Configurações"><i data-lucide="settings"></i></button>
+        </div>
+
+        <button id="run-btn" disabled><i data-lucide="play"></i> Rodar</button>
+        <button id="submit-btn" disabled title="Envia para o juiz (testes de exemplo + testes extras)"><i data-lucide="send"></i> Submeter</button>
+      </div>
+    </header>
+    <div id="settings-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i data-lucide="settings"></i> Configurações</h3>
+          <button id="close-settings-btn" class="icon-btn" title="Fechar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-group">
+            <label for="layout-select">Layout do Painel Auxiliar</label>
+            <select id="layout-select">
+              <option value="vertical">Empilhado (Testes em cima, Terminal embaixo)</option>
+              <option value="horizontal">Lado a Lado (Testes Esq., Terminal Dir.)</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label for="fontsize-input">Tamanho da Fonte</label>
+            <div class="slider-container">
+              <input type="range" id="fontsize-input" min="12" max="24" step="1" value="14">
+              <span id="fontsize-display">14px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="submit-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3><i data-lucide="send"></i> Submeter solução</h3>
+          <button id="close-submit-btn" class="icon-btn" title="Fechar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-subtitle">Quem trabalhou principalmente nesta solução? (pode marcar mais de um)</p>
+          <div id="participantes-lista" class="arena-participantes"></div>
+          <p class="arena-aviso">A submissão só é aceita se passar em <strong>todos os testes de exemplo</strong>. Os pontos dependem de quantos <strong>testes extras</strong> o juiz aprovar, e no empate vence o menor código (comentários e indentação não contam). Você pode reenviar para melhorar. Depois de 3 tentativas neste módulo, cada nova submissão espera 3 minutos.</p>
+          <button id="confirm-submit-btn" class="arena-primario"><i data-lucide="send"></i> Enviar para o juiz</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ide-container" id="main-split">
+      <div id="editor-pane"></div>
+      
+      <div id="side-pane" class="side-split">
+        
+        <div id="test-pane">
+          <div class="pane-header tabs-header">
+            <button id="tab-instrucoes" class="tab-btn active"><i data-lucide="book-open"></i> Instruções</button>
+            <button id="tab-grid" class="tab-btn" style="display: none;"><i data-lucide="grid"></i> Visualizador 2D</button>
+          </div>
+          
+          <div id="test-content" class="tab-content">
+            <h3>Bem-vindo ao meuPiá!</h3>
+          </div>
+
+          <div id="grid-content" class="tab-content hidden" style="display: flex; flex-direction: column; align-items: center; padding: 10px;">
+            <div class="grid-controls" style="margin-bottom: 10px; display: flex; gap: 8px; align-items: center;">
+                <button id="grid-prev" class="icon-btn" title="Passo Anterior"><i data-lucide="skip-back"></i></button>
+                <button id="grid-play" class="icon-btn" title="Auto-Play"><i data-lucide="play"></i></button>
+                <button id="grid-next" class="icon-btn" title="Próximo Passo"><i data-lucide="skip-forward"></i></button>
+                <span id="grid-step-display" style="font-family: monospace; font-size: 14px; margin-left: 10px;">Passo: 0 / 0</span>
+            </div>
+            <div class="canvas-wrapper" style="background: #000; padding: 5px; border-radius: 8px; border: 1px solid #333;">
+                <canvas id="grid-canvas" width="400" height="400"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <div id="terminal-pane"></div>
+        
+      </div>
+    </div>
+
+
+    <script type="module" src="/src/main.js"></script>
+
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

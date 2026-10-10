@@ -1,0 +1,17 @@
+{
+  "codigo": "G91",
+  "id": "exemplo_g91",
+  "modulo": "Agendador",
+  "problemaTecnico": "Fatorial com inteiros grandes",
+  "nivel": "Gold",
+  "pontos": 35,
+  "formato": "implementar",
+  "tempoEsperado": "15 min",
+  "inspiradoEm": "Exemplo do meuPiá Challenge",
+  "titulo": "G91 — Agendador (Fatorial com inteiros grandes)",
+  "descricao": "### 🟠 GOLD — 35 pts · Desafio de exemplo\n\n> Desafio **fictício** para desenvolvimento e testes. Os desafios reais do evento ficam só no banco.\n\n**Situação**\nO agendador calcula quantas ordens diferentes existem para executar `n` tarefas.\n\n**Objetivo técnico**\nComplete `fatorial(n)`: `n` vai de `0` a `60`. Devolva `n!` (lembre: `0! = 1`). O resultado pode ser muito grande.\n\n**Exemplos**\n| Entrada | Saída |\n|---|---|\n| `0` | `1` |\n| `5` | `120` |\n| `10` | `3628800` |\n\n**Como pontua**\n- A submissão só é **aceita** se passar em **todos os testes de exemplo** (os mesmos do botão Rodar).\n- O juiz também roda uma bateria de **testes extras**, maior e mais difícil. Os pontos são proporcionais aos extras aprovados (\"N de M\"), e o módulo fica **completo** com 100%.\n- Vale a melhor submissão da equipe, e dá para reenviar para melhorar. No empate, vence o **menor código** (comentários e indentação não contam).",
+  "codigoInicial": "algoritmo \"G91_Agendador\"\n\nvar\n    i, f : inteiro\n\nfuncao fatorial(n)\n    f <- 1\n    // ❌ MULTIPLIQUE AQUI\n    retorne f\nfim_funcao\n\ninicio\n    escreva(fatorial(5))\nfim_algoritmo\n",
+  "testesPublicos": "esperar_igual(fatorial(0), 1, \"Exemplo 1\")\nesperar_igual(fatorial(5), 120, \"Exemplo 2\")\nesperar_igual(fatorial(10), 3628800, \"Exemplo 3\")",
+  "testesExtras": "esperar_igual(fatorial(1), 1, \"extra 1\")\nesperar_igual(fatorial(2), 2, \"extra 2\")\nesperar_igual(fatorial(3), 6, \"extra 3\")\nesperar_igual(fatorial(12), 479001600, \"extra 4\")\nesperar_igual(fatorial(13), 6227020800, \"extra 5\")\nesperar_igual(fatorial(20), 2432902008176640000, \"extra 6\")\nesperar_igual(fatorial(21), 51090942171709440000, \"extra 7\")\nesperar_igual(fatorial(25), 15511210043330985984000000, \"extra 8\")\nesperar_igual(fatorial(30), 265252859812191058636308480000000, \"extra 9\")\nesperar_igual(fatorial(40), 815915283247897734345611269596115894272000000000, \"extra 10\")\nesperar_igual(fatorial(45), 119622220865480194561963161495657715064383733760000000000, \"extra 11\")\nesperar_igual(fatorial(50), 30414093201713378043612608166064768844377641568960512000000000000, \"extra 12\")\nesperar_igual(fatorial(55), 12696403353658275925965100847566516959580321051449436762275840000000000000, \"extra 13\")\nesperar_igual(fatorial(59), 138683118545689835737939019720389406345902876772687432540821294940160000000000000, \"extra 14\")\nesperar_igual(fatorial(60), 8320987112741390144276341183223364380754172606361245952449277696409600000000000000, \"extra 15\")",
+  "gabarito": "algoritmo \"G91_Agendador\"\n\nvar\n    i, f : inteiro\n\nfuncao fatorial(n)\n    f <- 1\n    para i de 2 até n faça\n        f <- f * i\n    fim_para\n    retorne f\nfim_funcao\n\ninicio\n    escreva(fatorial(5))\nfim_algoritmo\n"
+}

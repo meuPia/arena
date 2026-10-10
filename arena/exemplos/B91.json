@@ -1,0 +1,17 @@
+{
+  "codigo": "B91",
+  "id": "exemplo_b91",
+  "modulo": "Calibração",
+  "problemaTecnico": "Dobro de uma leitura",
+  "nivel": "Bronze",
+  "pontos": 10,
+  "formato": "implementar",
+  "tempoEsperado": "5–10 min",
+  "inspiradoEm": "Exemplo do meuPiá Challenge",
+  "titulo": "B91 — Calibração (Dobro de uma leitura)",
+  "descricao": "### 🟢 BRONZE — 10 pts · Desafio de exemplo\n\n> Desafio **fictício** para desenvolvimento e testes. Os desafios reais do evento ficam só no banco.\n\n**Situação**\nO sensor de calibração está devolvendo metade do valor real.\n\n**Objetivo técnico**\nComplete `dobro(n)`: devolva o dobro do inteiro `n` (que pode ser negativo).\n\n**Exemplos**\n| Entrada | Saída |\n|---|---|\n| `2` | `4` |\n| `0` | `0` |\n| `-3` | `-6` |\n\n**Como pontua**\n- A submissão só é **aceita** se passar em **todos os testes de exemplo** (os mesmos do botão Rodar).\n- O juiz também roda uma bateria de **testes extras**, maior e mais difícil. Os pontos são proporcionais aos extras aprovados (\"N de M\"), e o módulo fica **completo** com 100%.\n- Vale a melhor submissão da equipe, e dá para reenviar para melhorar. No empate, vence o **menor código** (comentários e indentação não contam).",
+  "codigoInicial": "algoritmo \"B91_Calibracao\"\n\nvar\n    x : inteiro\n\nfuncao dobro(n)\n    // ❌ ESCREVA SEU CÓDIGO AQUI\n    retorne 0\nfim_funcao\n\ninicio\n    escreva(dobro(21))\nfim_algoritmo\n",
+  "testesPublicos": "esperar_igual(dobro(2), 4, \"Exemplo 1\")\nesperar_igual(dobro(0), 0, \"Exemplo 2\")\nesperar_igual(dobro(-3), -6, \"Exemplo 3\")",
+  "testesExtras": "esperar_igual(dobro(1), 2, \"extra 1\")\nesperar_igual(dobro(-1), -2, \"extra 2\")\nesperar_igual(dobro(7), 14, \"extra 3\")\nesperar_igual(dobro(100), 200, \"extra 4\")\nesperar_igual(dobro(-250), -500, \"extra 5\")\nesperar_igual(dobro(999999), 1999998, \"extra 6\")\nesperar_igual(dobro(-1000000), -2000000, \"extra 7\")\nesperar_igual(dobro(123456789), 246913578, \"extra 8\")\nesperar_igual(dobro(1099511627776), 2199023255552, \"extra 9\")\nesperar_igual(dobro(-1099511627776), -2199023255552, \"extra 10\")\nesperar_igual(dobro(950552657564), 1901105315128, \"extra 11\")\nesperar_igual(dobro(-984254474053), -1968508948106, \"extra 12\")\nesperar_igual(dobro(31), 62, \"extra 13\")\nesperar_igual(dobro(-77), -154, \"extra 14\")\nesperar_igual(dobro(500), 1000, \"extra 15\")",
+  "gabarito": "algoritmo \"B91_Calibracao\"\n\nvar\n    x : inteiro\n\nfuncao dobro(n)\n    retorne n * 2\nfim_funcao\n\ninicio\n    escreva(dobro(21))\nfim_algoritmo\n"
+}

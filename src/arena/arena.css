@@ -1,0 +1,144 @@
+/* Code Arena — painel, placar e extras da IDE. Tema escuro (laboratório/telão). */
+:root {
+  --a-bg: #11151a;
+  --a-surface: #1a2027;
+  --a-surface-2: #222a33;
+  --a-border: #2e3842;
+  --a-text: #e8edf2;
+  --a-muted: #93a1ad;
+  --a-accent: #4caf50;
+  --a-bronze: #c98a4b;
+  --a-silver: #b8c4cf;
+  --a-gold: #e2b33c;
+  --a-extra: #e0645a;
+  --a-ok: #4caf50;
+  --a-fail: #e0645a;
+}
+
+.hidden { display: none !important; }
+
+.arena-pagina {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--a-bg);
+  color: var(--a-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.arena-topo, .arena-placar-topo {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 24px; border-bottom: 1px solid var(--a-border); background: var(--a-surface);
+}
+.arena-marca { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.arena-marca img { height: 28px; }
+.arena-topo-equipe { color: var(--a-muted); font-weight: 600; }
+
+.arena-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+.arena-sobretitulo { margin: 0; color: var(--a-muted); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; }
+h1 { margin: 4px 0 8px; font-size: clamp(22px, 4vw, 34px); }
+
+/* Login */
+.arena-login { max-width: 560px; margin: 8vh auto 0; }
+.arena-lead { color: var(--a-muted); line-height: 1.5; }
+.arena-form { display: grid; gap: 10px; margin-top: 24px; }
+.arena-form label { font-weight: 600; }
+.arena-input {
+  padding: 12px 14px; font-size: 18px; border-radius: 8px; border: 1px solid var(--a-border);
+  background: var(--a-surface-2); color: var(--a-text); text-transform: uppercase; letter-spacing: .06em;
+}
+.arena-primario {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 18px; font-size: 16px; font-weight: 700; border: 0; border-radius: 8px;
+  background: var(--a-accent); color: #fff; cursor: pointer;
+}
+.arena-primario:hover { filter: brightness(1.1); }
+.arena-primario svg { width: 18px; height: 18px; }
+.arena-erro { color: var(--a-fail); min-height: 1.2em; margin: 0; }
+.arena-link { background: none; border: 0; color: var(--a-muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* Painel */
+.arena-faixa { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.arena-faixa-dados { display: flex; gap: 12px; }
+.arena-kpi {
+  display: flex; flex-direction: column; align-items: center; min-width: 110px;
+  padding: 10px 16px; border: 1px solid var(--a-border); border-radius: 10px; background: var(--a-surface);
+}
+.arena-kpi span { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.arena-kpi small { color: var(--a-muted); }
+.arena-kpi.grande span { font-size: 48px; }
+.arena-situacao { margin: 16px 0 8px; padding: 10px 14px; border-radius: 8px; background: var(--a-surface); }
+
+.arena-nivel-bloco { margin-top: 28px; }
+.arena-nivel-bloco h2 { font-size: 18px; margin: 0 0 6px; }
+.arena-nivel-bloco h2 small { color: var(--a-muted); font-weight: 500; }
+.arena-dica { margin: 0 0 8px; color: var(--a-muted); }
+.arena-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+
+.arena-card {
+  display: flex; flex-direction: column; gap: 4px; padding: 14px; min-height: 120px;
+  border: 1px solid var(--a-border); border-radius: 10px; background: var(--a-surface);
+  color: inherit; text-decoration: none; transition: transform .1s, border-color .1s;
+}
+a.arena-card:hover { transform: translateY(-2px); border-color: var(--a-accent); }
+.arena-card.trancado { opacity: .45; cursor: not-allowed; }
+.arena-card.completo { border-color: var(--a-ok); background: color-mix(in srgb, var(--a-ok) 12%, var(--a-surface)); }
+.arena-card.parcial { border-color: var(--a-gold); background: color-mix(in srgb, var(--a-gold) 8%, var(--a-surface)); }
+.arena-cod { font-family: ui-monospace, monospace; color: var(--a-muted); font-size: 13px; }
+.arena-modulo { font-size: 17px; font-weight: 700; }
+.arena-tecnico { color: var(--a-muted); font-size: 14px; flex: 1; }
+.arena-rodape-card { display: flex; justify-content: space-between; font-size: 13px; color: var(--a-muted); }
+.arena-rodape-painel { margin-top: 32px; color: var(--a-muted); text-align: center; }
+.arena-rodape-painel a { color: var(--a-muted); }
+
+/* Placar (telão) */
+.arena-telao { font-size: 20px; }
+.arena-telao h1 { font-size: clamp(26px, 3.5vw, 44px); }
+.arena-freeze { margin: 0; padding: 12px 24px; background: #1d3a57; color: #cfe6ff; font-weight: 700; text-align: center; }
+.arena-tabela { width: calc(100% - 48px); margin: 24px; border-collapse: collapse; }
+.arena-tabela th { text-align: left; color: var(--a-muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--a-border); }
+.arena-tabela td { padding: 14px 12px; border-bottom: 1px solid var(--a-border); }
+.arena-tabela .pos { width: 48px; color: var(--a-muted); font-variant-numeric: tabular-nums; }
+.arena-tabela .nome { font-weight: 700; }
+.arena-tabela .pts { font-size: 1.4em; font-weight: 800; font-variant-numeric: tabular-nums; }
+.arena-tabela .bolas { letter-spacing: .15em; color: var(--a-accent); }
+.arena-tabela .vazias { color: var(--a-border); }
+.arena-legenda { margin: 0 24px; color: var(--a-muted); font-size: 14px; }
+.arena-tabela .meias { color: var(--a-gold); }
+.arena-tabela .num { font-variant-numeric: tabular-nums; color: var(--a-muted); }
+.arena-tabela.pequena { font-size: 14px; }
+.arena-tabela.pequena td { padding: 6px 12px; }
+.arena-tabela tr.ok td { color: var(--a-ok); }
+.arena-admin { padding: 0 0 48px; }
+.arena-admin h2 { margin: 24px 24px 0; }
+
+/* Extras na IDE */
+.arena-voltar {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 12px; padding: 4px 10px;
+  font-size: 13px; font-weight: 600; border: 1px solid var(--border-color); border-radius: 6px;
+  color: var(--text-color); text-decoration: none;
+}
+.arena-voltar svg { width: 14px; height: 14px; }
+#submit-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; padding: 8px 14px;
+  border: 0; border-radius: 6px; background: #2f6fb5; color: #fff; font-weight: 700; cursor: pointer;
+}
+#submit-btn:disabled { opacity: .55; cursor: not-allowed; }
+#submit-btn svg { width: 16px; height: 16px; }
+.arena-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; opacity: .85; margin-top: 4px; }
+.arena-nivel { font-weight: 700; }
+.nivel-Bronze { color: var(--a-bronze); }
+.nivel-Silver { color: var(--a-silver); }
+.nivel-Gold { color: var(--a-gold); }
+.nivel-Extra { color: var(--a-extra); }
+.arena-veredito { margin: 10px 0; padding: 12px 14px; border-radius: 8px; font-weight: 700; line-height: 1.4; white-space: pre-line; }
+.arena-veredito.parcial { background: color-mix(in srgb, var(--a-gold) 15%, transparent); border: 1px solid var(--a-gold); }
+.arena-veredito.success { background: color-mix(in srgb, var(--a-ok) 18%, transparent); border: 1px solid var(--a-ok); }
+.arena-veredito.fail { background: color-mix(in srgb, var(--a-fail) 15%, transparent); border: 1px solid var(--a-fail); }
+.arena-participantes { display: grid; gap: 8px; margin: 12px 0; }
+.arena-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.arena-aviso { font-size: 13px; opacity: .8; }
+
+@media (max-width: 600px) {
+  .arena-topo, .arena-placar-topo { padding: 10px 16px; }
+  .arena-tabela { width: calc(100% - 32px); margin: 16px; font-size: 15px; }
+}
