@@ -5,6 +5,8 @@ dist/
 __pycache__/
 .pytest_cache/
 .venv/
+.claude/
+CLAUDE.md
 
 # Códigos reais das equipes: NUNCA versionar (use a env ARENA_EQUIPES na Vercel)
 arena/equipes.json
