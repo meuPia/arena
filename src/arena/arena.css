@@ -111,6 +111,38 @@ a.arena-card:hover { transform: translateY(-2px); border-color: var(--a-accent);
 .arena-admin { padding: 0 0 48px; }
 .arena-admin h2 { margin: 24px 24px 0; }
 
+/* Painel da banca (admin.html) */
+a.arena-primario { text-decoration: none; }
+.arena-secundario {
+  padding: 10px 16px; font-size: 15px; font-weight: 600; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--a-border); background: var(--a-surface-2); color: var(--a-text);
+}
+.arena-input.sem-caixa { text-transform: none; letter-spacing: normal; }
+.arena-input.pequeno { padding: 8px 10px; font-size: 15px; }
+.arena-abas { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--a-border); margin-bottom: 8px; }
+.arena-aba-botao {
+  padding: 10px 16px; border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--a-muted); font: inherit; font-weight: 600; cursor: pointer;
+}
+.arena-aba-botao[aria-selected="true"] { color: var(--a-text); border-bottom-color: var(--a-accent); }
+.arena-aba .arena-tabela { width: 100%; margin: 16px 0; }
+.arena-filtros, .arena-form-linha { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.arena-filtros .arena-input { flex: 1; min-width: 220px; }
+.arena-form-linha .arena-input { flex: 1; min-width: 160px; }
+.arena-aba .arena-tabela.pequena button { margin-right: 8px; }
+.arena-dialogo {
+  width: min(900px, calc(100vw - 32px)); max-height: 85vh; padding: 0;
+  border: 1px solid var(--a-border); border-radius: 10px; background: var(--a-surface); color: var(--a-text);
+}
+.arena-dialogo::backdrop { background: rgb(0 0 0 / .6); }
+.arena-dialogo header {
+  display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--a-border);
+}
+.arena-dialogo pre { margin: 0; padding: 16px; overflow: auto; max-height: 70vh; font-size: 14px; line-height: 1.45; }
+@media (max-width: 600px) {
+  .arena-aba { overflow-x: auto; }
+}
+
 /* Extras na IDE */
 .arena-voltar {
   display: inline-flex; align-items: center; gap: 4px; margin-left: 12px; padding: 4px 10px;

@@ -8,6 +8,12 @@ roda dentro de _arena_teste(k, ...), com alarme próprio: exceção, laço infin
 ou comparação inválida reprovam só aquele teste. O `inicio` do aluno roda antes,
 com o mesmo limite, e não conta como teste.
 
+Antes de executar, o executor apaga os arquivos do diretório de trabalho (main.por e
+output/, que contêm os testes extras) e liga um guarda de auditoria (sys.addaudithook):
+o código do aluno só lê arquivos das bibliotecas do Python e não abre outros arquivos,
+não grava, não usa rede, não cria processos nem carrega ctypes. Não é um sandbox
+completo: é uma camada a mais sobre o ambiente vazio e os rlimits do juiz.
+
 A saída do programa do aluno é descartada. No stdout real saem só linhas
 <nonce>{json}: uma por teste ({"i", "ok", "ms", "falha"}), e {"fim": true} no final
 (ou {"montagem": "invalida"}). Como cada linha sai na hora, os testes já concluídos
@@ -17,11 +23,23 @@ import ast
 import io
 import json
 import os
+import shutil
 import signal
 import sys
 import time
 
 TEMPO_POR_TESTE = 1.0  # segundos
+
+# Módulos que o código do aluno não pode importar (rede, processos, memória crua).
+MODULOS_PROIBIDOS = frozenset({
+    "_posixsubprocess", "subprocess", "_ctypes", "ctypes", "socket", "_socket", "ssl", "_ssl",
+    "select", "selectors", "multiprocessing", "_multiprocessing", "_posixshmem", "pty", "mmap",
+    "fcntl", "resource", "urllib.request", "http.client", "ftplib", "smtplib", "webbrowser",
+})
+# Prefixos de eventos de auditoria sempre recusados (os.listdir/os.scandir são tratados à parte).
+EVENTOS_PROIBIDOS = ("os.", "socket.", "subprocess.", "ctypes.", "shutil.", "urllib.", "http.",
+                     "ftplib.", "smtplib.", "webbrowser.", "mmap.", "pty.", "fcntl.", "resource.")
+_FLAGS_ESCRITA = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND
 
 
 class _TempoDoTeste(BaseException):
@@ -57,6 +75,60 @@ def transformar(codigo, n):
         novo.append(ast.Expr(ast.Call(ast.Name("_arena_teste", ast.Load()), [ast.Constant(k), fn], [])))
     main.body = novo
     return compile(ast.fix_missing_locations(arvore), "main.py", "exec")
+
+
+def _raizes_leitura():
+    """Diretórios das bibliotecas do Python (stdlib, site-packages, shim): os únicos legíveis."""
+    candidatos = list(sys.path) + [sys.prefix, sys.base_prefix, sys.exec_prefix, sys.base_exec_prefix]
+    raizes = set()
+    for c in candidatos:
+        if c and os.path.isdir(c):
+            r = os.path.realpath(c)
+            if r != os.path.sep:
+                raizes.add(r.rstrip(os.path.sep) + os.path.sep)
+    return tuple(sorted(raizes))
+
+
+def _guarda(raizes):
+    """Hook de auditoria: recusa o que o código do aluno não precisa (ver docstring do módulo)."""
+    def legivel(caminho):
+        if isinstance(caminho, int):
+            return False  # descritores (ex.: open(1, "w") no stdout real)
+        try:
+            real = os.path.realpath(os.fsdecode(caminho if caminho not in (None, "") else "."))
+        except (TypeError, ValueError):
+            return False
+        return (real + os.path.sep).startswith(raizes)
+
+    def gancho(evento, args):
+        if evento == "open":
+            caminho, modo, flags = args
+            escrita = (isinstance(modo, str) and any(c in modo for c in "wax+")) or \
+                (isinstance(flags, int) and flags & _FLAGS_ESCRITA)
+            if escrita or not legivel(caminho):
+                raise PermissionError("acesso a arquivo não permitido no juiz")
+        elif evento in ("os.listdir", "os.scandir"):
+            if not legivel(args[0]):
+                raise PermissionError("acesso a arquivo não permitido no juiz")
+        elif evento == "import":
+            if args[0] in MODULOS_PROIBIDOS or args[0].split(".")[0] in MODULOS_PROIBIDOS:
+                raise ImportError(f"módulo {args[0]} não permitido no juiz")
+        elif evento.startswith(EVENTOS_PROIBIDOS):
+            raise PermissionError(f"operação não permitida no juiz ({evento})")
+    return gancho
+
+
+def _apagar_diretorio_de_trabalho():
+    """Remove main.por, output/ e o que mais o compilador deixou (os testes estão lá)."""
+    for nome in os.listdir("."):
+        caminho = os.path.join(".", nome)
+        if os.path.isdir(caminho) and not os.path.islink(caminho):
+            shutil.rmtree(caminho, ignore_errors=True)
+        else:
+            try:
+                os.remove(caminho)
+            except OSError:
+                pass
 
 
 def principal():
@@ -112,6 +184,9 @@ def principal():
             return
         ok = falha is None and plugin_testes.RESULTADOS.get(k, False)
         emitir({"i": k, "ok": bool(ok), "ms": int((time.perf_counter() - inicio) * 1000), "falha": falha})
+
+    _apagar_diretorio_de_trabalho()
+    sys.addaudithook(_guarda(_raizes_leitura()))  # daqui em diante não dá para desligar
 
     sys.stdout = io.StringIO()
     sys.stdin = io.StringIO("")  # sem leia() interativo no juiz

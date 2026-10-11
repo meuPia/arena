@@ -73,6 +73,26 @@ De forma geral, o deploy envolve:
 4. cadastrar equipes e credenciais;
 5. carregar os desafios do evento.
 
+### Painel da banca (`/admin.html`)
+
+Admin e juízes entram com **Google** ou **GitHub** (OAuth). Só entram o root (identidades na variável
+secreta `ARENA_ROOT`) e as pessoas cadastradas na aba Perfis. O painel mostra o placar real (sem freeze),
+as submissões com o código-fonte e, para admins, os perfis e a auditoria. O `ADMIN_TOKEN` continua
+valendo como acesso de emergência, se o OAuth falhar.
+
+Para ligar um provedor, registre um app OAuth com a URL de retorno `https://<domínio>/api/oauth_retorno`
+(e `http://localhost:8787/api/oauth_retorno` para testes; no GitHub, um app por URL) e defina
+`OAUTH_<PROVEDOR>_ID` e `OAUTH_<PROVEDOR>_SECRET`. Um provedor só aparece no login com as duas variáveis.
+
+| Variável | Para quê |
+|---|---|
+| `OAUTH_GOOGLE_ID` / `OAUTH_GOOGLE_SECRET` | login com Google (escopos `openid email profile`) |
+| `OAUTH_GITHUB_ID` / `OAUTH_GITHUB_SECRET` | login com GitHub (escopos `read:user user:email`) |
+| `ARENA_ROOT` | JSON com as identidades do root, ex.: `{"google": "voce@gmail.com", "github": "seu-login"}`. Só na Vercel/`.env.local` |
+| `ARENA_URL` | opcional: origem fixa usada na URL de retorno (padrão: o host da requisição) |
+
+O `npm run local` lê do `.env.local` só essas variáveis (nunca as do banco).
+
 ## Desenvolvimento e testes
 
 O repositório pode incluir desafios fictícios para desenvolvimento local, enquanto os desafios oficiais do evento permanecem armazenados de forma privada.

@@ -37,7 +37,7 @@ export class ErroApi extends Error {
 
 async function chamar(caminho, opcoes = {}) {
   const s = sessao();
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...(opcoes.headers || {}) };
   if (s?.token) headers.Authorization = `Bearer ${s.token}`;
   let resp;
   try {
@@ -61,7 +61,7 @@ export const api = {
   missao: (codigo) => chamar(`/api/missoes?codigo=${encodeURIComponent(codigo)}`),
   submeter: (codigo, fonte, participantes) =>
     chamar("/api/submeter", { method: "POST", body: JSON.stringify({ codigo, fonte, participantes }) }),
-  placar: (admin) => chamar(`/api/placar${admin ? `?admin=${encodeURIComponent(admin)}` : ""}`),
+  placar: (admin) => chamar("/api/placar", admin ? { headers: { "X-Admin-Token": admin } } : {}),
 };
 
 // Rascunho do código por equipe + missão (sobrevive a voltar ao painel / recarregar).

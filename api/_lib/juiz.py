@@ -15,7 +15,7 @@ import tempfile
 AQUI = os.path.dirname(os.path.abspath(__file__))
 EXECUTOR = os.path.join(AQUI, "executor.py")
 
-TEMPO_COMPILACAO = 10  # segundos
+TEMPO_COMPILACAO = 5  # segundos (compilar leva ~0,1 s; sobra margem no maxDuration de 30 s)
 TEMPO_EXECUCAO_MAX = 15  # segundos (total: min(15, 2 + 1 s por teste))
 MEMORIA_MAX = 512 * 1024 * 1024
 TAMANHO_MAX_CODIGO = 20_000  # caracteres
@@ -59,14 +59,36 @@ def _extrair_erro(saida):
     return "Erro de compilação."
 
 
+def _proteger_processo():
+    """Linux: marca o processo da função como não "dumpable". Assim /proc/<pid>/environ e
+    /proc/<pid>/mem (onde estão SUPABASE_SERVICE_ROLE_KEY, ARENA_SECRET e ADMIN_TOKEN)
+    deixam de ser legíveis pelos filhos que rodam o código do aluno com o mesmo usuário."""
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        import ctypes
+        ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0)  # PR_SET_DUMPABLE = 4
+    except Exception:  # noqa: BLE001
+        pass
+
+
+_proteger_processo()
+
+
 def _limitar_recursos(segundos):
     def aplicar():  # roda no filho, só em Linux/macOS
-        try:
-            import resource
-            resource.setrlimit(resource.RLIMIT_AS, (MEMORIA_MAX, MEMORIA_MAX))
-            resource.setrlimit(resource.RLIMIT_CPU, (segundos + 1, segundos + 1))
-        except Exception:  # noqa: BLE001
-            pass
+        import resource
+        limites = [
+            (resource.RLIMIT_AS, MEMORIA_MAX),
+            (resource.RLIMIT_CPU, segundos + 1),
+            (resource.RLIMIT_NPROC, 0),  # sem fork: o código do aluno não cria processos
+            (resource.RLIMIT_FSIZE, 0),  # sem gravar arquivos
+        ]
+        for recurso, valor in limites:
+            try:
+                resource.setrlimit(recurso, (valor, valor))
+            except Exception:  # noqa: BLE001
+                pass
     return aplicar
 
 

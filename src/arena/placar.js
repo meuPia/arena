@@ -1,19 +1,25 @@
 // Placar para o telão. Sem código/solução de ninguém: só o estado de cada módulo
 // (● completo, ◐ aceito parcial, ○ sem submissão aceita), pontos, completos e caracteres.
-// Admin: /placar.html?admin=TOKEN mostra o placar real (sem freeze) e as submissões.
+// Admin: /placar.html#admin=TOKEN mostra o placar real (sem freeze) e as submissões.
+// O token sai da URL logo ao abrir (fica só na aba, em sessionStorage) e vai à API num cabeçalho.
 import { api, escapar, formatarRelogio } from "./api.js";
+import { linhasPlacar } from "./placar-tabela.js";
 
 const $ = (id) => document.getElementById(id);
-const admin = new URLSearchParams(location.search).get("admin");
+
+function tokenAdmin() {
+  const daUrl = new URLSearchParams(location.hash.slice(1)).get("admin")
+    || new URLSearchParams(location.search).get("admin"); // formato antigo
+  try {
+    if (daUrl) sessionStorage.setItem("arena_admin", daUrl);
+    else return sessionStorage.getItem("arena_admin");
+  } catch { /* navegação privada: segue só com o valor da URL */ }
+  if (daUrl) history.replaceState(null, "", location.pathname);
+  return daUrl;
+}
+const admin = tokenAdmin();
 let janela = null;
 let deslocamento = 0;
-
-const SIMBOLO = { completo: '<span class="bolas">●</span>', parcial: '<span class="meias">◐</span>' };
-
-function bolinhas(estados) {
-  if (!estados || !estados.length) return "–";
-  return estados.map((e) => SIMBOLO[e] || '<span class="vazias">○</span>').join("");
-}
 
 const fracao = (b) => (b && b.total ? `${b.aprovados}/${b.total}` : "–");
 
@@ -24,15 +30,7 @@ async function atualizar() {
   deslocamento = p.janela.agora - Date.now() / 1000;
   $("evento").textContent = p.evento;
   $("faixa-freeze").classList.toggle("hidden", !p.congelado);
-  $("linhas").innerHTML = p.linhas.map((l) => `
-    <tr>
-      <td class="pos">${l.posicao}</td>
-      <td class="nome">${escapar(l.nome)}</td>
-      ${["Bronze", "Silver", "Gold", "Extra"].map((n) => `<td class="modulos">${bolinhas(l.modulos[n])}</td>`).join("")}
-      <td class="pts">${l.pontos}</td>
-      <td class="num">${l.completos}</td>
-      <td class="num">${l.completos ? l.caracteres : "–"}</td>
-    </tr>`).join("");
+  $("linhas").innerHTML = linhasPlacar(p.linhas);
 
   if (p.submissoes) {
     $("admin").classList.remove("hidden");

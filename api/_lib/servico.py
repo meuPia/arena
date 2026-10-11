@@ -1,5 +1,6 @@
 """Casos de uso da arena (sem HTTP): login, missões, submissão, placar."""
 import json
+import secrets
 import time
 
 from . import arena, juiz, store
@@ -30,9 +31,21 @@ def _equipe(eid):
     return e
 
 
-def login(codigo):
+LOGIN_JANELA = 600  # segundos
+LOGIN_MAX_ERROS = 30  # por IP e janela: o laboratório inteiro pode sair pelo mesmo IP
+
+
+def login(codigo, ip="", db=None, agora=None):
+    """Troca o código da equipe por um token. Erros contam por IP: passou do limite, nem o
+    código certo entra até a janela virar (senão a força bruta continuaria)."""
+    db = db or store.abrir()
+    agora = agora if agora is not None else time.time()
+    chave, campo = store.k_login(int(agora // LOGIN_JANELA)), ip or "?"
+    if int(db.hget(chave, campo) or 0) >= LOGIN_MAX_ERROS:
+        raise Erro(429, "Muitas tentativas de login. Aguarde alguns minutos.")
     e = arena.equipe_por_codigo(codigo)
     if not e:
+        db.hincrby(chave, campo, 1)
         raise Erro(401, "Código de equipe inválido.")
     return {"token": emitir_token(e["id"]), "equipe": {"id": e["id"], "nome": e["nome"]}}
 
@@ -130,16 +143,17 @@ def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
     db.hset(store.k_ultima(eid), codigo, agora)
 
     r = juiz.julgar(fonte, d["testesPublicos"], seg["testesExtras"])
+    sid = secrets.token_hex(6)  # mesmo id no log e em aceitas (o painel abre a submissão por ele)
     pontos = 0
     if r["status"] == "aceito":
         pontos = arena.pontos_submissao(d, r["extras"]["aprovados"], r["extras"]["total"], cfg)
-        registro = {"t": agora, "codigo": codigo, "pontos": pontos,
+        registro = {"id": sid, "t": agora, "codigo": codigo, "pontos": pontos,
                     "completo": r["completo"], "caracteres": r["caracteres"]}
         db.lpush(store.k_aceitas(eid), json.dumps(registro))
         aceitas.append(registro)
 
     db.lpush(store.k_log(), json.dumps({
-        "t": agora, "equipe": eid, "nome": e["nome"], "codigo": codigo, "tentativa": n,
+        "id": sid, "t": agora, "equipe": eid, "nome": e["nome"], "codigo": codigo, "tentativa": n,
         "status": r["status"], "exemplos": r["exemplos"], "extras": r["extras"],
         "pontos": pontos, "completo": r["completo"], "caracteres": r["caracteres"],
         "participantes": list(participantes)[:10], "fonte": fonte[:juiz.TAMANHO_MAX_CODIGO],
@@ -166,9 +180,25 @@ def placar(admin=False, db=None, agora=None):
     return {"evento": cfg["evento"], "janela": jan, "congelado": congelado, "totais": totais, "linhas": linhas}
 
 
-def submissoes(limite=200, db=None):
+def submissao(sid, db=None):
+    """Uma entrada do log COM o código-fonte (só para a banca), ou None."""
     db = db or store.abrir()
-    return [json.loads(x) for x in db.lrange(store.k_log(), 0, limite - 1)]
+    for x in db.lrange(store.k_log(), 0, -1):
+        s = json.loads(x)
+        if s.get("id") == sid:
+            return s
+    return None
+
+
+def submissoes(limite=200, db=None):
+    """Log para o placar do admin, sem o código-fonte (fica só no banco)."""
+    db = db or store.abrir()
+    out = []
+    for x in db.lrange(store.k_log(), 0, limite - 1):
+        s = json.loads(x)
+        s.pop("fonte", None)
+        out.append(s)
+    return out
 
 
 def _revelado():

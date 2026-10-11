@@ -13,10 +13,11 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PALAVRAS = ["ORION", "VEGA", "LYRA", "NOVA", "ATLAS", "TITAN", "PULSAR", "QUASAR", "COMET", "NEBULA",
             "DRACO", "RIGEL", "SIRIUS", "ALTAIR", "CYGNUS", "HYDRA"]
 ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem 0/O/1/I
+TAMANHO = 6  # 32^6 ≈ 1 bilhão de combinações por palavra (as palavras são públicas)
 
 
 def codigo(i):
-    return f"{PALAVRAS[i % len(PALAVRAS)]}-" + "".join(secrets.choice(ALFABETO) for _ in range(4))
+    return f"{PALAVRAS[i % len(PALAVRAS)]}-" + "".join(secrets.choice(ALFABETO) for _ in range(TAMANHO))
 
 
 def main():

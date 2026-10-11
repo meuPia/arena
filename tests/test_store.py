@@ -46,6 +46,9 @@ def test_hash(banco):
     assert db.hget(f"{p}:h", "B01") == "2000"
     assert db.hget(f"{p}:h", "nada") is None
     assert db.hget(f"{p}:nada", "B01") is None
+    db.hdel(f"{p}:h", "B03")
+    db.hdel(f"{p}:h", "nada")  # campo inexistente: sem erro
+    assert "B03" not in db.hgetall(f"{p}:h") and db.hget(f"{p}:h", "B03") is None
 
 
 def test_hincrby(banco):

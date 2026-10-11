@@ -238,6 +238,21 @@ def test_log_guarda_participantes_e_resultado(db):
     assert log[0]["exemplos"] == {"aprovados": 3, "total": 3}
     assert log[0]["extras"]["total"] >= 15 and log[0]["pontos"] > 0 and log[0]["caracteres"] > 0
     assert json.dumps(log)  # serializável
+    assert "fonte" not in log[0]  # o código-fonte fica só no banco
+    assert "fonte" in json.loads(db.lrange(store.k_log(), 0, 0)[0])
+
+
+def test_login_limita_erros_por_ip(db):
+    assert servico.login("TROQUE-ESTE-CODIGO-1", ip="1.1.1.1", db=db, agora=0)["equipe"]["id"] == "equipe1"
+    for _ in range(servico.LOGIN_MAX_ERROS):
+        with pytest.raises(Erro) as e:
+            servico.login("ORION-AAAAAA", ip="1.1.1.1", db=db, agora=10)
+        assert e.value.status == 401
+    with pytest.raises(Erro) as e:  # bloqueado: nem o código certo entra
+        servico.login("TROQUE-ESTE-CODIGO-1", ip="1.1.1.1", db=db, agora=20)
+    assert e.value.status == 429
+    assert servico.login("TROQUE-ESTE-CODIGO-1", ip="2.2.2.2", db=db, agora=20)  # outro IP segue
+    assert servico.login("TROQUE-ESTE-CODIGO-1", ip="1.1.1.1", db=db, agora=servico.LOGIN_JANELA)  # janela nova
 
 
 def test_placar_publico_congela_e_admin_ve_melhoria(db, monkeypatch):

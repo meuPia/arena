@@ -1,5 +1,6 @@
-"""GET /api/placar              -> placar público (congela nos minutos finais)
-GET /api/placar?admin=TOKEN  -> placar real + últimas submissões"""
+"""GET /api/placar                              -> placar público (congela nos minutos finais)
+GET /api/placar  (X-Admin-Token: ADMIN_TOKEN)  -> placar real + últimas submissões
+O token vai no cabeçalho, nunca na URL (que acaba em logs e no histórico)."""
 import os
 import sys
 
@@ -10,7 +11,7 @@ from _lib.web import Base, admin_ok  # noqa: E402
 
 class handler(Base):
     def get(self):
-        admin = admin_ok(self.query.get("admin"))
+        admin = admin_ok(self.headers.get("X-Admin-Token"))
         out = servico.placar(admin=admin)
         if admin:
             out["submissoes"] = servico.submissoes()

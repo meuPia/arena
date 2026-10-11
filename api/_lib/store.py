@@ -42,6 +42,9 @@ class RedisRest:
     def hsetnx(self, chave, campo, valor):
         return bool(self._cmd("HSETNX", chave, campo, valor))
 
+    def hdel(self, chave, campo):
+        self._cmd("HDEL", chave, campo)
+
     def hincrby(self, chave, campo, n=1):
         return int(self._cmd("HINCRBY", chave, campo, n))
 
@@ -105,6 +108,10 @@ class SupabaseRest:
         r = self._req("POST", "arena_hash", corpo={"chave": chave, "campo": campo, "valor": str(valor)},
                       prefer="resolution=ignore-duplicates,return=representation")
         return bool(r)
+
+    def hdel(self, chave, campo):
+        self._req("DELETE", "arena_hash", {"chave": self._eq(chave), "campo": self._eq(campo)},
+                  prefer="return=minimal")
 
     def hincrby(self, chave, campo, n=1):
         return int(self._req("POST", "rpc/arena_hincrby", corpo={"p_chave": chave, "p_campo": campo, "p_n": n}))
@@ -172,6 +179,9 @@ class Local:
             return True
         return self._tx(f)
 
+    def hdel(self, chave, campo):
+        self._tx(lambda d: d.get(chave, {}).pop(campo, None))
+
     def hincrby(self, chave, campo, n=1):
         def f(d):
             h = d.setdefault(chave, {})
@@ -232,6 +242,18 @@ def k_segredos():
 
 def k_validacao():
     return f"{_conteudo()}:validacao"      # hash cod -> JSON da última validação {ok, quando, resumo}
+
+
+def k_login(janela):
+    return f"{_p()}:login:{janela}"        # hash ip -> nº de logins errados na janela de 10 min
+
+
+def k_usuarios():
+    return f"{_conteudo()}:usuarios"       # hash email -> JSON {email, nome, github, papel} (perfis da banca)
+
+
+def k_auditoria():
+    return f"{_conteudo()}:auditoria"      # lista JSON {t, autor, acao, alvo, resumo} (mais recente primeiro)
 
 
 def k_log():

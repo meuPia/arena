@@ -192,3 +192,43 @@ def test_juiz_nao_ve_segredos_do_servidor(monkeypatch):
     fonte = 'algoritmo "T"\nfuncao triplo(n)\n    retorne os.environ.get("ARENA_SECRET", "")\nfim_funcao\ninicio\nfim_algoritmo'
     r = juiz.julgar(fonte, "", 'esperar_igual(triplo(1), "segredo-super", "x")')
     assert not r["completo"]
+
+
+# ---------------- isolamento do código do aluno ----------------
+# `expr` é Python que o aluno consegue escrever (identificadores desconhecidos passam direto).
+# A função soma 0 * len(expr) à resposta certa: se a operação for permitida, os testes passam.
+
+def com_operacao(expr):
+    return aluno(f"    retorne n * 3 + 0 * len(str({expr}))")
+
+
+@pytest.mark.parametrize("expr", [
+    'open("main.por").read()',                      # testes extras no diretório de trabalho
+    'open("output/main.py").read()',
+    'open("/etc/hosts").read()',                     # qualquer arquivo fora das bibliotecas
+    'open("/proc/self/environ").read()',
+    'open("x.txt", "w").write("a")',                 # gravar arquivo
+    '__import__("os").listdir(".")',
+    '__import__("os").system("true")',               # processos
+    '__import__("subprocess").run(["true"])',
+    '__import__("_posixsubprocess")',
+    '__import__("socket")',                          # rede
+    '__import__("urllib.request")',
+    '__import__("ctypes")',                          # memória crua
+], ids=lambda e: e[:40])
+def test_juiz_bloqueia_operacao_perigosa(expr):
+    r = juiz.julgar(com_operacao(expr), EXEMPLOS, EXTRAS)
+    assert r["status"] == "reprovado_exemplos" and r["exemplos"]["aprovados"] == 0, r
+
+
+def test_juiz_apaga_os_testes_antes_de_executar():
+    # os.path.exists não é auditado: confirma que os arquivos com os testes já foram apagados.
+    fonte = aluno('    se __import__("os").path.exists("main.por") ou __import__("os").path.exists("output") então\n'
+                  '        retorne 0\n    fim_se\n' + CORRETO)
+    r = juiz.julgar(fonte, EXEMPLOS, EXTRAS)
+    assert r["status"] == "aceito" and r["completo"], r
+
+
+def test_juiz_permite_bibliotecas_do_python():
+    r = juiz.julgar(com_operacao('__import__("fractions").Fraction(1, 3)'), EXEMPLOS, EXTRAS)
+    assert r["status"] == "aceito" and r["completo"], r

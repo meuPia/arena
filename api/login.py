@@ -9,4 +9,4 @@ from _lib.web import Base  # noqa: E402
 
 class handler(Base):
     def post(self):
-        return servico.login(self.corpo.get("codigo", ""))
+        return servico.login(self.corpo.get("codigo", ""), ip=self.ip())

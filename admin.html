@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banca · meuPiá Challenge</title>
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="stylesheet" href="/src/arena/arena.css" />
+  </head>
+  <body class="arena-pagina">
+    <header class="arena-topo">
+      <div class="arena-marca"><img src="/logo.svg" alt="" /> meuPiá Challenge · Banca</div>
+      <div class="arena-topo-equipe">
+        <span id="usuario"></span>
+        <button id="btn-sair" class="arena-link hidden">Sair</button>
+      </div>
+    </header>
+
+    <main class="arena-main">
+      <section id="tela-login" class="arena-login hidden">
+        <p class="arena-sobretitulo">Painel da banca</p>
+        <h1>Entrar</h1>
+        <p class="arena-lead">Acesso restrito à organização e aos juízes cadastrados.</p>
+        <div id="provedores" class="arena-form"></div>
+        <p id="sem-provedores" class="arena-lead hidden">Nenhum provedor de login configurado.</p>
+        <form id="form-emergencia" class="arena-form hidden">
+          <label for="token-emergencia">Token de emergência</label>
+          <input id="token-emergencia" class="arena-input sem-caixa" type="password" autocomplete="off" required />
+          <button class="arena-secundario" type="submit">Entrar com o token</button>
+        </form>
+        <p id="erro-login" class="arena-erro" role="alert"></p>
+      </section>
+
+      <section id="tela-painel" class="hidden">
+        <nav id="abas" class="arena-abas" role="tablist"></nav>
+
+        <section id="aba-placar" class="arena-aba hidden">
+          <p class="arena-situacao">Placar real, sem freeze. Não projete esta tela no telão.</p>
+          <table class="arena-tabela"><thead id="placar-cabecalho"></thead><tbody id="placar-linhas"></tbody></table>
+        </section>
+
+        <section id="aba-submissoes" class="arena-aba hidden">
+          <div class="arena-filtros">
+            <input id="filtro-subs" class="arena-input sem-caixa pequeno" placeholder="Filtrar por equipe, módulo, status ou participante" />
+            <button id="atualizar-subs" class="arena-secundario">Atualizar</button>
+          </div>
+          <table class="arena-tabela pequena">
+            <thead><tr><th>Hora</th><th>Equipe</th><th>Módulo</th><th>Tent.</th><th>Resultado</th><th>Exemplos</th><th>Extras</th><th>Pts</th><th>Car.</th><th>Participantes</th><th></th></tr></thead>
+            <tbody id="subs"></tbody>
+          </table>
+        </section>
+
+        <section id="aba-perfis" class="arena-aba hidden">
+          <form id="form-perfil" class="arena-form-linha">
+            <input name="email" class="arena-input sem-caixa pequeno" type="email" placeholder="E-mail" required />
+            <input name="nome" class="arena-input sem-caixa pequeno" placeholder="Nome" required maxlength="80" />
+            <input name="github" class="arena-input sem-caixa pequeno" placeholder="GitHub (opcional)" />
+            <select name="papel" class="arena-input sem-caixa pequeno"><option value="juiz">juiz</option><option value="admin">admin</option></select>
+            <button class="arena-primario" type="submit">Salvar</button>
+          </form>
+          <p class="arena-aviso">Salvar com um e-mail já cadastrado edita o perfil. Quem entra pelo Google é reconhecido pelo e-mail; pelo GitHub, pelo login ou por um e-mail verificado.</p>
+          <p id="erro-perfil" class="arena-erro" role="alert"></p>
+          <table class="arena-tabela pequena">
+            <thead><tr><th>Nome</th><th>E-mail</th><th>GitHub</th><th>Papel</th><th></th></tr></thead>
+            <tbody id="perfis"></tbody>
+          </table>
+        </section>
+
+        <section id="aba-auditoria" class="arena-aba hidden">
+          <table class="arena-tabela pequena">
+            <thead><tr><th>Hora</th><th>Quem</th><th>Ação</th><th>Alvo</th><th>Detalhe</th></tr></thead>
+            <tbody id="auditoria"></tbody>
+          </table>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="dialogo-fonte" class="arena-dialogo">
+      <header><strong id="fonte-titulo"></strong><button id="fechar-fonte" class="arena-link">Fechar</button></header>
+      <pre id="fonte-codigo"></pre>
+    </dialog>
+
+    <script type="module" src="/src/arena/admin.js"></script>
+  </body>
+</html>

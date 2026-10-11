@@ -4,6 +4,10 @@ Uso:
   npm run build
   ARENA_MODO=ensaio python scripts/servidor_local.py        # http://localhost:8787
 Sem KV_REST_API_URL, os dados ficam em /tmp/meupia-arena.json.
+
+Do .env.local, só as variáveis do login da banca (OAUTH_*, ARENA_ROOT, ARENA_URL) são lidas.
+As do banco (SUPABASE_*, KV_*) ficam de fora de propósito: o servidor local nunca grava no
+banco do evento. Para isso, exporte-as no shell de forma explícita.
 """
 import importlib.util
 import os
@@ -17,6 +21,20 @@ DIST = os.path.join(RAIZ, "dist")
 sys.path.insert(0, API)
 
 _handlers = {}
+
+
+def carregar_env_local():
+    caminho = os.path.join(RAIZ, ".env.local")
+    if not os.path.exists(caminho):
+        return
+    with open(caminho, encoding="utf-8") as f:
+        for linha in f:
+            nome, sep, valor = linha.strip().partition("=")
+            nome = nome.removeprefix("export ").strip()
+            if not sep or nome.startswith("#"):
+                continue
+            if nome.startswith("OAUTH_") or nome in ("ARENA_ROOT", "ARENA_URL"):
+                os.environ.setdefault(nome, valor.strip().strip("'\""))
 
 
 def _handler(nome):
@@ -58,6 +76,7 @@ class Roteador(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    carregar_env_local()
     porta = int(os.environ.get("PORTA", "8787"))
     print(f"Code Arena local em http://localhost:{porta}  (modo: {os.environ.get('ARENA_MODO') or 'horário real'})")
     ThreadingHTTPServer(("127.0.0.1", porta), Roteador).serve_forever()

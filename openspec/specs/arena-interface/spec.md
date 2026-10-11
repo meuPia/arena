@@ -51,7 +51,7 @@ O placar SHALL ter as colunas posição, equipe, uma coluna por nível, Pontos, 
 Na visão admin, o log de submissões SHALL mostrar, para cada submissão, horário, equipe, módulo, tentativa, status, exemplos aprovados/total, extras aprovados/total, pontos, caracteres e participantes.
 
 #### Scenario: Submissão parcial no log
-- **WHEN** o admin abre `/placar.html?admin=...` depois de uma submissão aceita com 14/20 extras
+- **WHEN** o admin abre `/placar.html#admin=...` depois de uma submissão aceita com 14/20 extras
 - **THEN** a linha mostra exemplos 3/3, extras 14/20, os pontos e os caracteres dessa submissão
 
 ### Requirement: Textos da IDE sobre o juiz
