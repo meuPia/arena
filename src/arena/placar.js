@@ -1,7 +1,7 @@
 // Placar para o telão. Sem código/solução de ninguém: só o estado de cada módulo
 // (● completo, ◐ aceito parcial, ○ sem submissão aceita), pontos, completos e caracteres.
 // Sempre o placar público (congela no freeze). O placar real e o log ficam em /admin.html.
-import { api, formatarRelogio } from "./api.js";
+import { api, escapar, formatarRelogio } from "./api.js";
 import { linhasPlacar } from "./placar-tabela.js";
 
 const $ = (id) => document.getElementById(id);
@@ -13,7 +13,9 @@ async function atualizar() {
   try { p = await api.placar(); } catch { return; }
   janela = p.janela;
   deslocamento = p.janela.agora - Date.now() / 1000;
-  $("evento").textContent = p.evento;
+  // "CODE CHALLENGE — SYSTEM RECOVERY": a parte depois do travessão ganha a cor de destaque.
+  const [antes, depois] = String(p.evento).split(/\s+[—-]\s+/, 2);
+  $("evento").innerHTML = depois ? `${escapar(antes)} — <span class="destaque">${escapar(depois)}</span>` : escapar(p.evento);
   $("faixa-freeze").classList.toggle("hidden", !p.congelado);
   $("linhas").innerHTML = linhasPlacar(p.linhas);
 }

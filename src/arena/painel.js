@@ -1,7 +1,6 @@
 import { api, sessao, salvarSessao, sair, escapar, formatarRelogio } from "./api.js";
 
 const $ = (id) => document.getElementById(id);
-const ICONE_NIVEL = { Bronze: "🟢", Silver: "🟡", Gold: "🟠", Extra: "🔴" };
 const SUBTITULO = {
   Bronze: "Serviços básicos", Silver: "Serviços intermediários", Gold: "Serviços críticos", Extra: "Estrutura avançada",
 };
@@ -35,28 +34,50 @@ $("btn-sair").addEventListener("click", () => {
   if (confirm("Sair desta equipe neste computador?")) sair();
 });
 
+const ROTULO_ESTADO = { completo: "COMPLETO", parcial: "PARCIAL", aberto: "ABERTA" };
+
 function renderNivel(n) {
   const itens = n.itens.map((m) => {
-    const estado = !n.liberado ? "trancado" : m.completo ? "completo" : m.melhor ? "parcial" : "aberto";
+    if (!n.liberado) {
+      return `
+      <div class="arena-card trancado">
+        <span class="arena-card-topo"><span class="arena-cod">${escapar(m.codigo)}</span>
+          <i data-lucide="lock" role="img" aria-label="Bloqueada"></i></span>
+        <span class="arena-card-corpo"><span class="arena-modulo">Bloqueada</span>
+          <span class="arena-tecnico">${escapar(n.dica || "Ainda bloqueado.")}</span></span>
+        <span class="arena-rodape-card"><span>até ${m.pontos} pts</span></span>
+      </div>`;
+    }
+    const estado = m.completo ? "completo" : m.melhor ? "parcial" : "aberto";
     const pts = m.melhor ? `${m.melhor.pontos}/${m.pontos} pts` : `${m.pontos} pts`;
-    const conteudo = `
-      <span class="arena-cod">${escapar(m.codigo)}</span>
-      <span class="arena-modulo">${escapar(m.modulo)}</span>
-      <span class="arena-tecnico">${n.liberado ? escapar(m.problemaTecnico) : "🔒 bloqueado"}</span>
-      <span class="arena-rodape-card">
-        <span>${pts}${m.completo ? " ✅" : ""}</span>
-        <span>${m.tentativas ? `${m.tentativas} tentativa(s)` : ""}</span>
-      </span>`;
-    return n.liberado
-      ? `<a class="arena-card ${estado}" href="/ide.html?desafio=${encodeURIComponent(m.codigo)}">${conteudo}</a>`
-      : `<div class="arena-card ${estado}" aria-disabled="true">${conteudo}</div>`;
+    const pct = m.completo ? 100 : m.melhor && m.pontos ? Math.round((100 * m.melhor.pontos) / m.pontos) : 0;
+    return `
+      <a class="arena-card ${estado}" href="/ide.html?desafio=${encodeURIComponent(m.codigo)}">
+        <span class="arena-card-topo"><span class="arena-cod nivel-${escapar(n.nivel)}">${escapar(m.codigo)}</span>
+          <span class="arena-estado">${ROTULO_ESTADO[estado]}</span></span>
+        <span class="arena-card-corpo"><span class="arena-modulo">${escapar(m.modulo)}</span>
+          <span class="arena-tecnico">${escapar(m.problemaTecnico)}</span></span>
+        <span class="arena-barra" aria-hidden="true"><span style="width: ${pct}%"></span></span>
+        <span class="arena-rodape-card">
+          <span>${m.tentativas ? `${m.tentativas} tentativa(s)` : "sem tentativas"}</span>
+          <span class="arena-pts">${pts}${m.completo ? " ✅" : ""}</span>
+        </span>
+      </a>`;
   }).join("");
   return `
     <section class="arena-nivel-bloco ${n.liberado ? "" : "trancado"}">
-      <h2>${ICONE_NIVEL[n.nivel] || ""} ${escapar(n.nivel.toUpperCase())} <small>— ${SUBTITULO[n.nivel] || ""}</small></h2>
-      ${n.liberado ? "" : `<p class="arena-dica">🔒 ${escapar(n.dica || "Ainda bloqueado.")}</p>`}
+      <h2 class="arena-nivel-titulo"><span class="a-selo a-chanfro nivel-${escapar(n.nivel)}">${escapar(n.nivel)}</span>
+        <small>${SUBTITULO[n.nivel] || ""}</small></h2>
       <div class="arena-grade">${itens}</div>
     </section>`;
+}
+
+function renderProgresso(niveis) {
+  const todos = niveis.flatMap((n) => n.itens);
+  const completos = todos.filter((m) => m.completo).length;
+  $("progresso-texto").textContent = `${completos} / ${todos.length}`;
+  $("progresso-barra").innerHTML = todos
+    .map((m) => `<span class="${m.completo ? "completo" : m.melhor ? "parcial" : ""}"></span>`).join("");
 }
 
 function atualizarRelogio() {
@@ -97,6 +118,7 @@ async function carregarPainel() {
   };
   $("situacao").textContent = (p.janela.ensaio ? "🧪 MODO ENSAIO · " : "") + sit[p.janela.situacao];
   $("niveis").innerHTML = p.niveis.map(renderNivel).join("");
+  renderProgresso(p.niveis);
   atualizarRelogio();
   icones();
 }

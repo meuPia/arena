@@ -1,5 +1,4 @@
 import { undo, redo } from "@codemirror/commands";
-import { oneDark } from "@codemirror/theme-one-dark";
 
 export function setupToolbar(view, term, themeConfig) {
     const fileInput = document.createElement("input");
@@ -43,17 +42,5 @@ export function setupToolbar(view, term, themeConfig) {
         }
     });
 
-    const themeBtn = document.getElementById("theme-btn");
-    let isDark = true;
-    themeBtn.addEventListener("click", () => {
-        isDark = !isDark;
-        document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
-        themeBtn.innerHTML = isDark ? '<i data-lucide="sun"></i>' : '<i data-lucide="moon"></i>';
-        if (window.lucide) window.lucide.createIcons();
-
-        view.dispatch({ effects: themeConfig.reconfigure(isDark ? oneDark : []) });
-        term.options.theme = isDark
-            ? { background: '#000000', foreground: '#ffffff', cursor: '#ffffff' }
-            : { background: '#ffffff', foreground: '#333333', cursor: '#333333' };
-    });
+    // Arena: o botão de tema (theme-btn) é tratado por src/arena/tema.js, que lembra a escolha e avisa main.js.
 }

@@ -6,35 +6,32 @@ Definir o formato dos desafios da Code Arena (testes de exemplo e bateria de tes
 ## Requirements
 
 ### Requirement: Campos de teste do desafio
-Cada `arena/desafios/<COD>.json` SHALL ter `testesPublicos` (os testes de exemplo, que o botão Rodar do Lab executa no navegador) e `testesExtras` (a bateria de submissão, só no servidor). O campo `testesOcultos` MUST NOT existir mais. Cada linha de teste é uma chamada `esperar_*`.
+Cada desafio SHALL ter `testesPublicos` (os testes de exemplo, que o botão Rodar do Lab executa no navegador) no registro público, e `testesExtras` (a bateria de submissão) e `gabarito` no registro secreto. O campo `testesOcultos` MUST NOT existir. Cada linha de teste é uma chamada `esperar_*`.
 
 #### Scenario: Campo renomeado
-- **WHEN** os 9 desafios (B01, B02, B03, S01, S02, S03, G01, G02, X01) são carregados
-- **THEN** todos têm `testesPublicos` e `testesExtras`, e nenhum tem `testesOcultos`
+- **WHEN** os desafios do banco são carregados
+- **THEN** todos têm `testesPublicos`, `testesExtras` e `gabarito`, e nenhum tem `testesOcultos`
 
 ### Requirement: Testes extras nunca saem do servidor
-`testesExtras` MUST NOT aparecer em nenhuma resposta da API ao navegador. O desafio público SHALL conter só os campos públicos de hoje: código, id, módulo, problema técnico, nível, pontos, formato, tempo esperado, título, descrição, código inicial e `testesPublicos`.
+`testesExtras` e `gabarito` MUST NOT aparecer em nenhuma resposta da API às equipes nem no placar. O desafio que a equipe recebe SHALL conter só os campos públicos. A única exceção é o painel administrativo: um **admin** logado (ou o acesso de emergência) SHALL poder ler e editar esses campos. Juízes MUST NOT recebê-los.
 
 #### Scenario: Missão sem extras
 - **WHEN** uma equipe abre a missão S01
-- **THEN** a resposta não contém `testesExtras` nem nenhum texto de teste extra
+- **THEN** a resposta não contém `testesExtras`, `gabarito` nem nenhum texto de teste extra
+
+#### Scenario: Juiz não lê segredos
+- **WHEN** um juiz pede os dados completos de um desafio pela API do painel
+- **THEN** a resposta é 403
 
 ### Requirement: Tamanho e dificuldade da bateria extra
-A bateria extra de cada desafio SHALL ter entre 15 e 25 testes, com a meta de cerca de 20. Ela inclui os casos de borda atuais (os antigos `testesOcultos`) e casos grandes ou aleatórios, nos limites do desafio, por exemplo: listas de até 300 itens, matrizes de até 12×12, números com até 80 dígitos e rotas de até 120 passos. Os textos dos testes gerados MUST NOT conter aspas duplas nem barra invertida dentro de literais de texto.
+A bateria extra de cada desafio SHALL ter entre 15 e 25 testes, com a meta de cerca de 20. Ela inclui casos de borda e casos grandes ou aleatórios, nos limites do desafio, por exemplo: listas de até 300 itens, matrizes de até 12×12, números com até 80 dígitos e rotas de até 120 passos. Os literais de texto dos testes MUST NOT conter aspas duplas nem barra invertida.
 
 #### Scenario: Bateria ampliada
 - **WHEN** a bateria extra de qualquer desafio é contada
-- **THEN** ela tem entre 15 e 25 linhas `esperar_*` e contém todos os casos de borda de `arena/extras_base/<COD>.txt`
-
-### Requirement: Geração determinística
-A bateria extra SHALL ser gerada por `scripts/gerar_testes_extras.py` com semente fixa. O script usa uma implementação de referência em Python de cada desafio para calcular os valores esperados e junta, em ordem, os casos de borda de `arena/extras_base/<COD>.txt` e os casos gerados. Rodar o script duas vezes sem mudar as entradas MUST produzir arquivos idênticos. O script SHALL atualizar só o campo `testesExtras` de cada desafio.
-
-#### Scenario: Reprodutível
-- **WHEN** o script roda duas vezes seguidas
-- **THEN** `git diff` não mostra mudança entre as duas execuções
+- **THEN** ela tem entre 15 e 25 linhas `esperar_*`
 
 ### Requirement: Validação dos desafios
-`npm run validar` SHALL julgar cada desafio com o juiz real e falhar se alguma destas condições não valer:
+`npm run validar` SHALL julgar com o juiz real os desafios do store configurado: o banco, quando Supabase ou Upstash estão configurados, ou os exemplos, com o store `Local`. A mesma validação SHALL estar disponível no painel para um desafio ou para todos. Ela falha se alguma destas condições não valer:
 - o gabarito tem veredito `aceito` e completo (100% dos exemplos e dos extras);
 - o código inicial **não** é completo;
 - nenhum teste do gabarito chega perto do limite por teste (margem: no máximo metade do limite);
@@ -54,3 +51,47 @@ A descrição de cada desafio SHALL explicar que enviar exige passar em todos os
 #### Scenario: Regra visível no enunciado
 - **WHEN** uma equipe abre qualquer missão
 - **THEN** o enunciado contém a explicação da pontuação por testes extras e do desempate por menor código
+
+### Requirement: Desafios no banco
+Os desafios SHALL ficar no banco da arena, num namespace de conteúdo definido por `ARENA_CONTEUDO` (padrão `conteudo`), independente do `ARENA_PREFIXO`. Assim, ensaio e evento usam os mesmos desafios. Cada desafio SHALL ter dois registros:
+- **público**: código, id, módulo, problema técnico, nível, pontos, formato, tempo esperado, inspiração, título, descrição, código inicial e `testesPublicos`;
+- **secreto**: `testesExtras` e `gabarito`.
+
+Telas e respostas que não julgam MUST carregar só os registros públicos. A parte secreta é lida só para julgar uma submissão ou pelo painel de admin. Uma edição feita no banco SHALL valer para as equipes em até 30 segundos, sem redeploy.
+
+#### Scenario: Desafio editado sem deploy
+- **WHEN** um admin muda o enunciado de B01 no painel
+- **THEN** as equipes passam a ver o enunciado novo em até 30 segundos, sem novo deploy
+
+#### Scenario: Painel não carrega segredos
+- **WHEN** uma equipe abre o painel de missões
+- **THEN** o servidor não lê os testes extras nem os gabaritos para montar essa resposta
+
+### Requirement: Repositório sem conteúdo secreto
+O repositório de código MUST NOT conter testes extras, gabaritos, casos de borda nem implementações de referência dos desafios reais, nem na árvore atual nem no histórico do repositório público. O único conteúdo de desafio versionado SHALL ser o de `arena/exemplos/`.
+
+#### Scenario: Varredura antes de publicar
+- **WHEN** a varredura de vazamento roda na árvore que vai para o repositório público
+- **THEN** nenhuma linha de teste extra nem trecho de gabarito dos desafios reais é encontrado
+
+### Requirement: Desafios de exemplo
+`arena/exemplos/` SHALL ter desafios fictícios e públicos, no mesmo formato (com gabarito e entre 15 e 25 testes extras), cobrindo os quatro níveis em quantidade suficiente para as regras de desbloqueio da config. Com o store `Local` (desenvolvimento e testes) e nenhum desafio no banco, a arena SHALL usar os exemplos. Com Supabase ou Upstash, a arena MUST NOT cair nos exemplos: um banco sem desafios mostra a arena sem missões.
+
+#### Scenario: Desenvolvimento local
+- **WHEN** alguém roda `npm run local` sem banco configurado
+- **THEN** o painel mostra os desafios de exemplo
+
+#### Scenario: Produção sem desafios
+- **WHEN** o Supabase está configurado e ainda não tem desafios
+- **THEN** a arena não mostra missões de exemplo
+
+### Requirement: Importação inicial dos desafios
+A carga inicial SHALL ser feita por um script do repositório **privado** (`scripts/popular_desafios.py`, sobre `api/_lib/conteudo.py`), que nunca é publicado. Ele SHALL ler desafios no formato antigo (`<COD>.json` mais o gabarito em `<COD>.por` ou no próprio JSON) ou um arquivo exportado pelo painel, validar cada um com o juiz e gravá-los no banco configurado (parte pública e parte secreta). Desafios inválidos MUST NOT ser gravados. Rodar a importação de novo com os mesmos dados MUST deixar o banco igual.
+
+#### Scenario: Repositório público sem scripts de carga
+- **WHEN** os scripts do repositório público são listados
+- **THEN** não há script de carga, importação ou varredura de desafios reais
+
+#### Scenario: Importar os 9 desafios
+- **WHEN** o script roda sobre `arena/desafios` e `arena/gabaritos` do repositório privado, com o Supabase configurado
+- **THEN** os 9 desafios ficam no banco, e o `npm run validar` contra o banco termina com sucesso

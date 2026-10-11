@@ -8,7 +8,7 @@ import re
 import secrets
 import time
 
-from . import arena, auth, servico, store
+from . import arena, auth, conteudo, servico, store, validacao
 from .web import Erro
 
 PERMISSOES = {
@@ -21,6 +21,9 @@ PERMISSOES = {
     "regenerar_codigo": "admin", "importar_equipes": "admin",
     "participantes": "admin", "salvar_participante": "admin", "remover_participante": "admin",
     "ajustar": "juiz", "desfazer_ajuste": "juiz",
+    # desafios: só admin (juízes nunca recebem testes extras nem gabaritos)
+    "desafios": "admin", "desafio": "admin", "salvar_desafio": "admin", "validar_desafio": "admin",
+    "validar_todos": "admin", "exportar_desafios": "admin", "importar_desafios": "admin",
 }
 _NIVEL = {"juiz": 1, "admin": 2}
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -308,6 +311,149 @@ def _desfazer_ajuste(autor, dados, db):
     return {"ok": True}
 
 
+# ---------------- desafios ----------------
+
+_RE_CODIGO_DESAFIO = re.compile(r"^[A-Z]\d{2}$")
+OBRIGATORIOS = ("codigo", "modulo", "problemaTecnico", "nivel", "pontos", "titulo", "descricao", "codigoInicial",
+                "testesPublicos", "testesExtras", "gabarito")
+TEXTOS = tuple(c for c in arena.CAMPOS_REGISTRO + arena.CAMPOS_SEGREDO if c not in ("codigo", "pontos", "nivel"))
+
+
+def _ultimas_validacoes(db):
+    return {c: json.loads(v) for c, v in db.hgetall(store.k_validacao()).items()}
+
+
+def _registrar_validacao(db, codigo, r):
+    db.hset(store.k_validacao(), codigo, json.dumps(
+        {"ok": r["ok"], "quando": time.time(), "erros": r["erros"], "gabarito": r["gabarito"],
+         "inicial": r["inicial"], "maxMs": r["maxMs"]}, ensure_ascii=False))
+
+
+def _desafios(_autor, _dados, db):
+    vals = _ultimas_validacoes(db)
+    lista = []
+    for cod in arena.desafios(db):
+        d = arena.desafio_completo(db, cod)
+        lista.append({"codigo": cod, "nivel": d.get("nivel"), "pontos": d.get("pontos"), "titulo": d.get("titulo"),
+                      "modulo": d.get("modulo"), "extras": len(validacao_linhas(d.get("testesExtras"))),
+                      "validacao": vals.get(cod)})
+    return {"niveis": arena.config()["niveis"], "desafios": lista}
+
+
+def validacao_linhas(testes):
+    return [l for l in (testes or "").splitlines() if l.strip()]
+
+
+def _desafio(_autor, dados, db):
+    d = arena.desafio_completo(db, str(dados.get("codigo", "")).upper())
+    if d is None:
+        raise Erro(404, "Desafio não encontrado.")
+    return {"desafio": d, "validacao": _ultimas_validacoes(db).get(d["codigo"])}
+
+
+def _normalizar_desafio(bruto):
+    """Confere e normaliza os campos de um desafio vindo do formulário (Erro 400 com a lista de problemas)."""
+    if not isinstance(bruto, dict):
+        raise Erro(400, "Envie o desafio.")
+    d, erros = {}, []
+    d["codigo"] = str(bruto.get("codigo", "")).strip().upper()
+    if not _RE_CODIGO_DESAFIO.match(d["codigo"]):
+        erros.append("código no formato B01 (letra maiúscula e dois dígitos)")
+    d["nivel"] = bruto.get("nivel")
+    if d["nivel"] not in arena.config()["niveis"]:
+        erros.append("nível inválido")
+    try:
+        d["pontos"] = int(str(bruto.get("pontos", "")).strip())
+        if d["pontos"] <= 0 or str(bruto.get("pontos")).strip() != str(d["pontos"]):
+            raise ValueError
+    except ValueError:
+        erros.append("pontos devem ser um inteiro positivo")
+    for campo in TEXTOS:
+        if campo in bruto and bruto[campo] is not None:
+            d[campo] = str(bruto[campo])
+    d.setdefault("id", f"arena_{d['codigo'].lower()}")
+    faltando = [c for c in OBRIGATORIOS if c not in ("codigo", "nivel", "pontos") and not str(d.get(c, "")).strip()]
+    if faltando:
+        erros.append("campos obrigatórios vazios: " + ", ".join(faltando))
+    for campo in ("testesPublicos", "testesExtras"):
+        erros += [f"{campo}, {e}" for e in validacao.problemas_de_formato(d.get(campo, ""))]
+        aspas = [n for n, l in enumerate(validacao_linhas(d.get(campo)), 1) if l.count('"') % 2]
+        erros += [f"{campo}, linha {n}: aspas duplas dentro de texto" for n in aspas]
+    if erros:
+        raise Erro(400, "Desafio inválido: " + "; ".join(erros) + ".")
+    return d
+
+
+def _tem_tentativas(db, codigo):
+    return any(int(db.hgetall(store.k_tentativas(eid)).get(codigo, 0) or 0) for eid in arena.equipes(db))
+
+
+def _salvar_desafio(autor, dados, db):
+    d = _normalizar_desafio(dados.get("desafio"))
+    anterior = arena.desafio_completo(db, d["codigo"]) if d["codigo"] in db.hgetall(store.k_desafios()) else None
+    if dados.get("novo") and anterior is not None:
+        raise Erro(409, f"Já existe o desafio {d['codigo']} (o código não muda depois de criado).")
+    if not dados.get("novo") and anterior is None:
+        raise Erro(404, "Desafio não encontrado no banco. Para criar, use o botão Novo desafio.")
+    if anterior is not None and not dados.get("confirmarSubmissoes") and _tem_tentativas(db, d["codigo"]):
+        raise Erro(409, "Este desafio já recebeu submissões: a mudança não rejulga as antigas. Confirme para salvar.")
+    alterados = sorted(c for c in set(d) | set(anterior or {})
+                       if c in conteudo.CAMPOS and (d.get(c) or "") != ((anterior or {}).get(c) or ""))
+    arena.gravar_desafio(db, d)  # duas partes + limpa o cache deste processo
+    if anterior is None:
+        auditar(db, autor, "criar_desafio", d["codigo"])
+    else:
+        auditar(db, autor, "editar_desafio", d["codigo"], f"({', '.join(alterados) or 'sem mudança'})")
+    return {"ok": True, "alterados": alterados}
+
+
+def _validar_desafio(_autor, dados, db):
+    """Valida o formulário (`desafio`, sem salvar) ou um desafio salvo (`codigo`, registra o resultado)."""
+    if dados.get("desafio") is not None:
+        return {"validacao": validacao.validar(_normalizar_desafio(dados["desafio"]))}
+    d = arena.desafio_completo(db, str(dados.get("codigo", "")).upper())
+    if d is None:
+        raise Erro(404, "Desafio não encontrado.")
+    r = validacao.validar(d)
+    _registrar_validacao(db, d["codigo"], r)
+    return {"validacao": r}
+
+
+def _validar_todos(_autor, _dados, db):
+    out = {}
+    for cod in arena.desafios(db):
+        r = validacao.validar(arena.desafio_completo(db, cod))
+        _registrar_validacao(db, cod, r)
+        out[cod] = r
+    return {"ok": all(r["ok"] for r in out.values()), "validacoes": out}
+
+
+def _exportar_desafios(autor, _dados, db):
+    dados = conteudo.exportar(db)
+    auditar(db, autor, "exportar_desafios", "", f"{len(dados['desafios'])} desafio(s)")
+    return dados
+
+
+def _importar_desafios(autor, dados, db):
+    """Duas etapas: sem `confirmar`, devolve a prévia (criar/substituir/igual + validação); com `confirmar`,
+    valida de novo e grava só os válidos que mudaram."""
+    try:
+        desafios = conteudo.ler_export(dados.get("arquivo") or {})
+    except (ValueError, AttributeError) as e:
+        raise Erro(400, str(e) or "Arquivo inválido.") from None
+    plano = conteudo.planejar(db, desafios)
+    previa = [{"codigo": p["codigo"], "acao": p["acao"], "ok": p["validacao"]["ok"], "erros": p["validacao"]["erros"]}
+              for p in plano]
+    if not dados.get("confirmar"):
+        return {"previa": previa}
+    gravados = conteudo.aplicar(db, plano)
+    for p in plano:
+        if p["codigo"] in gravados:
+            _registrar_validacao(db, p["codigo"], p["validacao"])
+    auditar(db, autor, "importar_desafios", "", f"{len(gravados)} gravado(s): {', '.join(gravados) or '–'}")
+    return {"previa": previa, "gravados": gravados}
+
+
 def _auditoria(_autor, dados, db):
     limite = min(int(dados.get("limite") or 300), 1000)
     return {"auditoria": [json.loads(x) for x in db.lrange(store.k_auditoria(), 0, limite - 1)]}
@@ -322,4 +468,7 @@ _ACOES = {
     "participantes": _participantes, "salvar_participante": _salvar_participante,
     "remover_participante": _remover_participante,
     "ajustar": _ajustar, "desfazer_ajuste": _desfazer_ajuste,
+    "desafios": _desafios, "desafio": _desafio, "salvar_desafio": _salvar_desafio,
+    "validar_desafio": _validar_desafio, "validar_todos": _validar_todos,
+    "exportar_desafios": _exportar_desafios, "importar_desafios": _importar_desafios,
 }

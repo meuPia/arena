@@ -4,15 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Banca · meuPiá Challenge</title>
+    <script>try{document.documentElement.dataset.theme=localStorage.getItem("arena_tema")==="light"?"light":"dark"}catch(e){}</script>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="stylesheet" href="/src/arena/tema.css" />
     <link rel="stylesheet" href="/src/arena/arena.css" />
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
   </head>
   <body class="arena-pagina">
     <header class="arena-topo">
-      <div class="arena-marca"><img src="/logo.svg" alt="" /> meuPiá Challenge · Banca</div>
-      <div class="arena-topo-equipe">
-        <span id="usuario"></span>
-        <button id="btn-sair" class="arena-link hidden">Sair</button>
+      <div class="arena-marca"><span class="arena-marca-icone a-chanfro" aria-hidden="true"><i data-lucide="code-xml"></i></span><span>meuPiá<span class="arena-marca-destaque">&nbsp;ARENA</span></span><span class="a-selo a-chanfro nivel-Extra arena-marca-selo">Banca</span></div>
+      <div class="arena-topo-dados">
+        <span id="usuario" class="arena-usuario"></span>
+        <button id="btn-sair" class="arena-secundario hidden">Sair</button>
+        <button type="button" class="a-icone-botao" data-alternar-tema aria-label="Alternar tema"><i data-lucide="sun"></i></button>
       </div>
     </header>
 
@@ -83,6 +87,21 @@
           </table>
         </section>
 
+        <section id="aba-desafios" class="arena-aba hidden">
+          <p class="arena-situacao">Só admins veem esta seção: ela mostra testes extras e gabaritos. Exporte um backup depois de cada edição (o banco é a única cópia).</p>
+          <div class="arena-form-linha">
+            <button id="novo-desafio" class="arena-primario">Novo desafio</button>
+            <button id="validar-todos" class="arena-secundario">Validar todos</button>
+            <button id="exportar-desafios" class="arena-secundario">Exportar (backup)</button>
+            <label class="arena-secundario arena-arquivo">Importar…<input id="importar-arquivo" type="file" accept="application/json,.json" /></label>
+          </div>
+          <p id="status-desafios" class="arena-aviso"></p>
+          <table class="arena-tabela pequena">
+            <thead><tr><th>Código</th><th>Nível</th><th>Pts</th><th>Título</th><th>Extras</th><th>Última validação</th><th></th></tr></thead>
+            <tbody id="desafios"></tbody>
+          </table>
+        </section>
+
         <section id="aba-submissoes" class="arena-aba hidden">
           <div class="arena-filtros">
             <select id="filtro-equipe" class="arena-input sem-caixa pequeno"></select>
@@ -131,6 +150,47 @@
       <pre id="sub-codigo"></pre>
     </dialog>
 
+    <dialog id="dialogo-desafio" class="arena-dialogo largo">
+      <header><strong id="desafio-titulo">Desafio</strong><button id="fechar-desafio" class="arena-link" type="button">Fechar</button></header>
+      <form id="form-desafio" class="arena-dialogo-corpo arena-editor">
+        <div class="arena-grade-campos">
+          <label>Código<input name="codigo" class="arena-input sem-caixa pequeno" required pattern="[A-Z][0-9]{2}" placeholder="B04" /></label>
+          <label>Nível<select name="nivel" class="arena-input sem-caixa pequeno" required></select></label>
+          <label>Pontos<input name="pontos" class="arena-input sem-caixa pequeno" type="number" min="1" step="1" required /></label>
+          <label>Tempo esperado<input name="tempoEsperado" class="arena-input sem-caixa pequeno" placeholder="10 min" /></label>
+          <label>Módulo<input name="modulo" class="arena-input sem-caixa pequeno" required /></label>
+          <label>Problema técnico<input name="problemaTecnico" class="arena-input sem-caixa pequeno" required /></label>
+          <label>Formato<input name="formato" class="arena-input sem-caixa pequeno" /></label>
+          <label>Inspirado em<input name="inspiradoEm" class="arena-input sem-caixa pequeno" /></label>
+        </div>
+        <label>Título<input name="titulo" class="arena-input sem-caixa pequeno" required /></label>
+        <div class="arena-duas-colunas">
+          <label>Descrição (markdown)<textarea name="descricao" class="arena-codigo" rows="10" required></textarea></label>
+          <div><span class="arena-rotulo">Prévia</span><div id="previa-descricao" class="arena-previa"></div></div>
+        </div>
+        <label>Código inicial<textarea name="codigoInicial" class="arena-codigo" rows="10" required></textarea></label>
+        <label>Testes de exemplo (públicos)<textarea name="testesPublicos" class="arena-codigo" rows="4" required></textarea></label>
+        <label>Testes extras (secretos, 15 a 25)<textarea name="testesExtras" class="arena-codigo" rows="10" required></textarea></label>
+        <label>Gabarito (secreto)<textarea name="gabarito" class="arena-codigo" rows="12" required></textarea></label>
+        <div class="arena-form-linha">
+          <button id="validar-formulario" class="arena-secundario" type="button">Validar formulário</button>
+          <button class="arena-primario" type="submit">Salvar</button>
+        </div>
+        <pre id="resultado-desafio" class="arena-resultado hidden"></pre>
+      </form>
+    </dialog>
+
+    <dialog id="dialogo-importar" class="arena-dialogo">
+      <header><strong>Importar desafios</strong><button id="fechar-importar" class="arena-link" type="button">Fechar</button></header>
+      <div class="arena-dialogo-corpo">
+        <p class="arena-aviso">Só os desafios válidos são gravados. Os inválidos aparecem com os erros e ficam de fora.</p>
+        <table class="arena-tabela pequena"><thead><tr><th>Código</th><th>Ação</th><th>Validação</th></tr></thead><tbody id="previa-importacao"></tbody></table>
+        <div class="arena-form-linha"><button id="confirmar-importacao" class="arena-primario" type="button">Confirmar importação</button></div>
+        <p id="resultado-importacao" class="arena-aviso"></p>
+      </div>
+    </dialog>
+
+    <script type="module" src="/src/arena/tema.js"></script>
     <script type="module" src="/src/arena/admin.js"></script>
   </body>
 </html>

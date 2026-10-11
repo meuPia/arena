@@ -21,5 +21,5 @@ export function linhasPlacar(linhas) {
     </tr>`).join("");
 }
 
-export const CABECALHO_PLACAR = `<tr><th>#</th><th>Equipe</th>${NIVEIS.map((n) => `<th>${n}</th>`).join("")}`
-  + "<th>Pontos</th><th>Completos</th><th>Caracteres</th></tr>";
+export const CABECALHO_PLACAR = `<tr><th>#</th><th>Equipe</th>${NIVEIS.map((n) => `<th class="nivel-${n}">${n}</th>`).join("")}`
+  + '<th class="pts">Pontos</th><th class="num">Completos</th><th class="num">Caracteres</th></tr>';

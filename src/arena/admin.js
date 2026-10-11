@@ -1,6 +1,7 @@
 // Painel da banca: login OAuth (ou token de emergência) e as seções por papel.
 // admin: Equipes, Participantes, Perfis, Submissões, Placar real e Auditoria · juiz: Submissões e Placar real.
 // Tudo que vem do banco entra com escapar() ou textContent.
+import { marked } from "marked";
 import { escapar } from "./api.js";
 import { CABECALHO_PLACAR, linhasPlacar } from "./placar-tabela.js";
 
@@ -22,6 +23,7 @@ const ABAS = [
   { id: "equipes", rotulo: "Equipes", papel: "admin", carregar: carregarEquipes },
   { id: "participantes", rotulo: "Participantes", papel: "admin", carregar: carregarParticipantes },
   { id: "perfis", rotulo: "Perfis", papel: "admin", carregar: carregarPerfis },
+  { id: "desafios", rotulo: "Desafios", papel: "admin", carregar: carregarDesafios },
   { id: "submissoes", rotulo: "Submissões", papel: "juiz", carregar: carregarSubmissoes },
   { id: "placar", rotulo: "Placar real", papel: "juiz", carregar: carregarPlacar },
   { id: "auditoria", rotulo: "Auditoria", papel: "admin", carregar: carregarAuditoria },
@@ -276,6 +278,153 @@ $("perfis").addEventListener("click", (ev) => {
   }
 });
 
+// ---------------- desafios (só admin: mostra testes extras e gabaritos) ----------------
+
+const CAMPOS_DESAFIO = ["codigo", "nivel", "pontos", "tempoEsperado", "modulo", "problemaTecnico", "formato",
+  "inspiradoEm", "titulo", "descricao", "codigoInicial", "testesPublicos", "testesExtras", "gabarito"];
+let desafioNovo = false;
+let importacaoPendente = null;
+
+function textoValidacao(v) {
+  if (!v) return "nunca validado";
+  const quando = v.quando ? ` · ${hora(v.quando)}` : "";
+  return v.ok ? `✅ ok (gabarito ${v.gabarito}, máx. ${v.maxMs} ms)${quando}` : `❌ ${v.erros.join("; ")}${quando}`;
+}
+
+async function carregarDesafios() {
+  const r = await admin("desafios");
+  $("form-desafio").elements.nivel.innerHTML = r.niveis.map((n) => `<option>${escapar(n)}</option>`).join("");
+  $("desafios").innerHTML = r.desafios.map((d) => `
+    <tr><td><code>${escapar(d.codigo)}</code></td><td>${escapar(d.nivel)}</td><td>${d.pontos}</td>
+      <td>${escapar(d.titulo)}</td><td>${d.extras}</td><td>${escapar(textoValidacao(d.validacao))}</td>
+      <td><button class="arena-link" data-editar="${escapar(d.codigo)}">editar</button>
+          <button class="arena-link" data-validar="${escapar(d.codigo)}">validar</button></td></tr>`).join("")
+    || `<tr><td colspan="7">Nenhum desafio no banco.</td></tr>`;
+}
+
+function preencherDesafio(d) {
+  const f = $("form-desafio");
+  CAMPOS_DESAFIO.forEach((k) => { f.elements[k].value = d[k] ?? ""; });
+  f.elements.codigo.readOnly = !desafioNovo;  // o código não muda depois de criado
+  $("desafio-titulo").textContent = desafioNovo ? "Novo desafio" : `Editar ${d.codigo}`;
+  $("resultado-desafio").classList.add("hidden");
+  atualizarPrevia();
+  if (!$("dialogo-desafio").open) $("dialogo-desafio").showModal();
+}
+
+function lerDesafio() {
+  return Object.fromEntries(CAMPOS_DESAFIO.map((k) => [k, $("form-desafio").elements[k].value]));
+}
+
+function mostrarResultado(texto, ok) {
+  const el = $("resultado-desafio");
+  el.textContent = texto;
+  el.className = `arena-resultado ${ok ? "ok" : "falha"}`;
+}
+
+function atualizarPrevia() {
+  $("previa-descricao").innerHTML = marked.parse($("form-desafio").elements.descricao.value || "");
+}
+
+$("form-desafio").elements.descricao.addEventListener("input", atualizarPrevia);
+$("fechar-desafio").addEventListener("click", () => $("dialogo-desafio").close());
+$("novo-desafio").addEventListener("click", () => {
+  desafioNovo = true;
+  preencherDesafio({ nivel: "Bronze", pontos: 10 });
+});
+
+$("desafios").addEventListener("click", (ev) => {
+  const { editar, validar } = ev.target.dataset || {};
+  if (editar) {
+    tentar(async () => {
+      desafioNovo = false;
+      preencherDesafio((await admin("desafio", { codigo: editar })).desafio);
+    });
+  } else if (validar) {
+    tentar(async () => {
+      $("status-desafios").textContent = `Validando ${validar} com o juiz…`;
+      const r = (await adminPost("validar_desafio", { codigo: validar })).validacao;
+      $("status-desafios").textContent = `${validar}: ${textoValidacao(r)}`;
+      await carregarDesafios();
+    });
+  }
+});
+
+$("validar-formulario").addEventListener("click", async () => {
+  mostrarResultado("Validando com o juiz…", true);
+  try {
+    const v = (await adminPost("validar_desafio", { desafio: lerDesafio() })).validacao;
+    mostrarResultado(`${v.ok ? "OK" : "COM PROBLEMAS"}\ngabarito: ${v.gabarito ?? "–"}\ncódigo inicial: ${v.inicial ?? "–"}`
+      + `\nmaior tempo por teste: ${v.maxMs} ms${v.erros.length ? `\n\n- ${v.erros.join("\n- ")}` : ""}`, v.ok);
+  } catch (e) {
+    mostrarResultado(e.message, false);
+  }
+});
+
+$("form-desafio").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const dados = { desafio: lerDesafio(), novo: desafioNovo };
+  try {
+    let r;
+    try {
+      r = await adminPost("salvar_desafio", dados);
+    } catch (e) {
+      if (!/rejulga/.test(e.message) || !confirm(`${e.message}\n\nSalvar mesmo assim?`)) throw e;
+      r = await adminPost("salvar_desafio", { ...dados, confirmarSubmissoes: true });
+    }
+    desafioNovo = false;
+    $("form-desafio").elements.codigo.readOnly = true;
+    mostrarResultado(`Salvo. Campos alterados: ${r.alterados.join(", ") || "nenhum"}. `
+      + "As equipes veem a mudança em até 30 s. Lembre de exportar o backup.", true);
+    await carregarDesafios();
+  } catch (e) {
+    mostrarResultado(e.message, false);
+  }
+});
+
+$("validar-todos").addEventListener("click", () => tentar(async () => {
+  $("status-desafios").textContent = "Validando todos com o juiz (alguns segundos)…";
+  const r = await adminPost("validar_todos");
+  const ruins = Object.entries(r.validacoes).filter(([, v]) => !v.ok).map(([c]) => c);
+  $("status-desafios").textContent = r.ok ? "Todos os desafios estão OK." : `Com problemas: ${ruins.join(", ")}`;
+  await carregarDesafios();
+}));
+
+$("exportar-desafios").addEventListener("click", () => tentar(async () => {
+  const dados = await admin("exportar_desafios");
+  const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(blob), download: `desafios-${new Date().toISOString().slice(0, 10)}.json`,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+  $("status-desafios").textContent = `Backup exportado: ${dados.desafios.length} desafio(s). Guarde fora do repositório.`;
+}));
+
+$("importar-arquivo").addEventListener("change", (ev) => tentar(async () => {
+  const arquivo = ev.target.files[0];
+  ev.target.value = "";
+  if (!arquivo) return;
+  let json;
+  try { json = JSON.parse(await arquivo.text()); } catch { throw new Error("O arquivo não é um JSON válido."); }
+  const { previa } = await adminPost("importar_desafios", { arquivo: json });
+  importacaoPendente = json;
+  $("previa-importacao").innerHTML = previa.map((p) => `
+    <tr><td><code>${escapar(p.codigo)}</code></td><td>${escapar(p.acao)}</td>
+      <td>${p.ok ? "✅ ok" : `❌ ${escapar(p.erros.join("; "))}`}</td></tr>`).join("");
+  $("resultado-importacao").textContent = "";
+  $("confirmar-importacao").disabled = !previa.some((p) => p.ok && p.acao !== "igual");
+  $("dialogo-importar").showModal();
+}));
+
+$("confirmar-importacao").addEventListener("click", () => tentar(async () => {
+  const r = await adminPost("importar_desafios", { arquivo: importacaoPendente, confirmar: true });
+  $("resultado-importacao").textContent = `Gravados: ${r.gravados.join(", ") || "nenhum"}.`;
+  $("confirmar-importacao").disabled = true;
+  await carregarDesafios();
+}));
+$("fechar-importar").addEventListener("click", () => $("dialogo-importar").close());
+
 // ---------------- submissões e ajuste ----------------
 
 async function carregarSubmissoes() {
@@ -295,8 +444,8 @@ function renderSubmissoes() {
   const lista = submissoes.filter((s) => (!eq || s.nome === eq) && (!mod || s.codigo === mod) && (!st || s.status === st));
   $("subs").innerHTML = lista.map((s) => `
     <tr class="${s.status === "aceito" && s.completo && !s.ajuste ? "ok" : ""}">
-      <td>${hora(s.t)}</td><td>${escapar(s.nome)}</td><td>${escapar(s.codigo)}</td><td>${s.tentativa}</td>
-      <td>${escapar(s.status)}${s.completo ? " ✅" : ""}</td>
+      <td>${hora(s.t)}</td><td>${escapar(s.nome)}</td><td class="arena-cod">${escapar(s.codigo)}</td><td>${s.tentativa}</td>
+      <td><span class="arena-status ${s.status === "aceito" ? "aceito" : "falha"}">${escapar(s.status)}${s.completo ? " ✅" : ""}</span></td>
       <td>${fracao(s.exemplos)}</td><td>${fracao(s.extras)}</td>
       <td>${s.pontos ?? "–"}</td>
       <td class="${s.ajuste ? "ajustado" : ""}">${s.pontosEfetivos ?? "–"}${s.ajuste ? " ✎" : ""}</td>

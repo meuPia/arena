@@ -262,3 +262,99 @@ def test_producao_nao_usa_equipes_de_exemplo(db, monkeypatch):
     assert e.value.status == 409
     ex("criar_equipe", {"nome": "Orion"}, db)  # sem fonte antiga: criar direto no painel
     assert [e["nome"] for e in arena.equipes(db).values()] == ["Orion"]
+
+
+# ---------------- desafios (painel) ----------------
+
+def exemplo(cod="B91", **kw):
+    d = dict(arena._exemplos()[cod])
+    d.update(kw)
+    return d
+
+
+def test_juiz_nao_ve_nem_edita_desafios(db):
+    for acao in ("desafios", "desafio", "salvar_desafio", "validar_desafio", "validar_todos",
+                 "exportar_desafios", "importar_desafios"):
+        with pytest.raises(Erro) as e:
+            ex(acao, {"codigo": "B91", "desafio": exemplo()}, db, autor=JUIZ)
+        assert e.value.status == 403
+    assert db.hgetall(store.k_desafios()) == {}
+
+
+def test_criar_validar_e_aparecer_para_as_equipes(db):
+    novo = exemplo(codigo="B94", id="arena_b94", titulo="Dobro, de novo")
+    assert ex("validar_desafio", {"desafio": novo}, db)["validacao"]["ok"]  # formulário: não grava
+    assert db.hgetall(store.k_desafios()) == {}
+    ex("salvar_desafio", {"desafio": novo, "novo": True}, db)
+    assert "B94" in arena.desafios(db)  # cache limpo: as equipes veem na hora neste processo
+    assert servico.missao("equipe1", "B94", db=db)["titulo"] == "Dobro, de novo"
+    assert "testesExtras" not in servico.missao("equipe1", "B94", db=db)
+    with pytest.raises(Erro) as e:
+        ex("salvar_desafio", {"desafio": novo, "novo": True}, db)  # código já existe
+    assert e.value.status == 409
+    r = ex("validar_desafio", {"codigo": "B94"}, db)["validacao"]
+    assert r["ok"] and r["gabarito"].startswith("aceito 3/3 15/15")
+    lista = ex("desafios", db=db)["desafios"]
+    assert lista == [{"codigo": "B94", "nivel": "Bronze", "pontos": 10, "titulo": "Dobro, de novo",
+                      "modulo": novo["modulo"], "extras": 15, "validacao": lista[0]["validacao"]}]
+    assert lista[0]["validacao"]["ok"]
+    d = ex("desafio", {"codigo": "b94"}, db)["desafio"]
+    assert d["gabarito"] == novo["gabarito"] and d["testesExtras"] == novo["testesExtras"]
+
+
+@pytest.mark.parametrize("campo,valor", [
+    ("codigo", "b-4"), ("nivel", "Platina"), ("pontos", 0), ("pontos", "dez"), ("titulo", ""),
+    ("testesExtras", 'esperar_igual(dobro(1), 2, "a")\nescreva(1)'),
+    ("testesExtras", 'esperar_igual(dobro(1), 2, "a\\b")'),
+    ("testesPublicos", 'esperar_igual(dobro(1), 2, "a"b")'),
+])
+def test_salvar_exige_formato(db, campo, valor):
+    with pytest.raises(Erro) as e:
+        ex("salvar_desafio", {"desafio": exemplo(**{"codigo": "B94", campo: valor}), "novo": True}, db)
+    assert e.value.status == 400
+    assert db.hgetall(store.k_desafios()) == {}
+
+
+def test_edicao_auditada_sem_conteudo_e_confirmacao_com_submissoes(db):
+    ex("importar_desafios", {"arquivo": conteudo_export(), "confirmar": True}, db)
+    novos = exemplo("B92")["testesExtras"] + "\nesperar_igual(maior([7, 3]), 7, \"extra novo\")"
+    ex("salvar_desafio", {"desafio": exemplo("B92", testesExtras=novos)}, db)
+    a = ex("auditoria", db=db)["auditoria"][0]
+    assert (a["acao"], a["alvo"], a["resumo"]) == ("editar_desafio", "B92", "(testesExtras)")
+    assert "extra novo" not in json.dumps(ex("auditoria", db=db))
+
+    servico.submeter("equipe1", "B92", gabarito("B92"), ["Ana"], db=db)
+    with pytest.raises(Erro) as e:
+        ex("salvar_desafio", {"desafio": exemplo("B92", titulo="Outro título")}, db)
+    assert e.value.status == 409 and "rejulga" in e.value.mensagem
+    ex("salvar_desafio", {"desafio": exemplo("B92", titulo="Outro título"), "confirmarSubmissoes": True}, db)
+    assert arena.desafios(db)["B92"]["titulo"] == "Outro título"
+
+
+def conteudo_export():
+    from _lib import conteudo
+    return {"formato": conteudo.FORMATO, "versao": 1, "desafios": list(arena._exemplos().values())}
+
+
+def test_exportar_importar_com_previa_e_confirmacao(db):
+    arquivo = conteudo_export()
+    arquivo["desafios"].append(exemplo(codigo="B95", gabarito=exemplo()["codigoInicial"]))  # inválido
+    previa = ex("importar_desafios", {"arquivo": arquivo}, db)["previa"]
+    assert db.hgetall(store.k_desafios()) == {}  # prévia não grava
+    assert {p["codigo"]: (p["acao"], p["ok"]) for p in previa}["B95"] == ("criar", False)
+    r = ex("importar_desafios", {"arquivo": arquivo, "confirmar": True}, db)
+    assert sorted(r["gravados"]) == sorted(arena._exemplos()) and "B95" not in arena.desafios(db)
+    assert all(p["acao"] == "igual" for p in ex("importar_desafios", {"arquivo": conteudo_export()}, db)["previa"])
+
+    exp = ex("exportar_desafios", db=db)
+    assert exp["formato"] == "meupia-challenge/desafios" and len(exp["desafios"]) == 7
+    assert all(d["testesExtras"] and d["gabarito"] for d in exp["desafios"])
+    assert acoes(db)[:2] == ["exportar_desafios", "importar_desafios"]
+    with pytest.raises(Erro):
+        ex("importar_desafios", {"arquivo": {"formato": "outro"}}, db)
+
+
+def test_validar_todos(db):
+    ex("importar_desafios", {"arquivo": conteudo_export(), "confirmar": True}, db)
+    r = ex("validar_todos", db=db)
+    assert r["ok"] and len(r["validacoes"]) == 7

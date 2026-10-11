@@ -4,37 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Code Arena · meuPiá Challenge</title>
+    <script>try{document.documentElement.dataset.theme=localStorage.getItem("arena_tema")==="light"?"light":"dark"}catch(e){}</script>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="stylesheet" href="node_modules/@xterm/xterm/css/xterm.css" />
     <link rel="stylesheet" href="/src/style.css" />
+    <link rel="stylesheet" href="/src/arena/tema.css" />
     <link rel="stylesheet" href="/src/arena/arena.css" />
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/split.js/1.6.5/split.min.js"></script>
   </head>
-  <body>
+  <body class="arena-ide">
 
     <header>
-      <h2 class="logo-container">
-        <img src="/logo.svg" alt="Logo meuPiá" class="site-logo" /> 
-        meuPiá Challenge
+      <h2 class="logo-container arena-marca">
+        <span class="arena-marca-icone a-chanfro" aria-hidden="true"><i data-lucide="code-xml"></i></span>
+        <span>meuPiá<span class="arena-marca-destaque">&nbsp;ARENA</span></span>
         <a href="/" id="voltar-painel" class="arena-voltar" title="Voltar ao painel de missões"><i data-lucide="layout-grid"></i> Missões</a>
       </h2>
+      <div id="missao-topo" class="arena-missao-topo"></div>
       
       <div class="actions">
         <div class="action-group">
-          <button id="open-btn" title="Abrir Arquivo"><i data-lucide="folder-open"></i></button>
-          <button id="save-btn" title="Salvar Arquivo"><i data-lucide="save"></i></button>
+          <button id="open-btn" title="Abrir Arquivo" aria-label="Abrir arquivo"><i data-lucide="folder-open"></i></button>
+          <button id="save-btn" title="Salvar Arquivo" aria-label="Salvar arquivo"><i data-lucide="save"></i></button>
           <div class="divider"></div>
-          <button id="undo-btn" title="Desfazer"><i data-lucide="undo"></i></button>
-          <button id="redo-btn" title="Refazer"><i data-lucide="redo"></i></button>
+          <button id="undo-btn" title="Desfazer" aria-label="Desfazer"><i data-lucide="undo"></i></button>
+          <button id="redo-btn" title="Refazer" aria-label="Refazer"><i data-lucide="redo"></i></button>
           <div class="divider"></div>
-          <button id="reset-btn" title="Limpar Tudo"><i data-lucide="trash-2"></i></button>
+          <button id="reset-btn" title="Limpar Tudo" aria-label="Limpar tudo"><i data-lucide="trash-2"></i></button>
         </div>
 
         <div class="action-group">
-          <button id="theme-btn" title="Alternar Tema"><i data-lucide="sun"></i></button>
-          <button id="settings-btn" title="Configurações"><i data-lucide="settings"></i></button>
+          <button id="theme-btn" title="Alternar Tema" aria-label="Alternar tema" data-alternar-tema><i data-lucide="sun"></i></button>
+          <button id="settings-btn" title="Configurações" aria-label="Configurações"><i data-lucide="settings"></i></button>
         </div>
 
         <button id="run-btn" disabled><i data-lucide="play"></i> Rodar</button>
@@ -45,7 +48,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3><i data-lucide="settings"></i> Configurações</h3>
-          <button id="close-settings-btn" class="icon-btn" title="Fechar"><i data-lucide="x"></i></button>
+          <button id="close-settings-btn" class="icon-btn" title="Fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
         </div>
         <div class="modal-body">
           <div class="setting-group">
@@ -69,7 +72,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3><i data-lucide="send"></i> Submeter solução</h3>
-          <button id="close-submit-btn" class="icon-btn" title="Fechar"><i data-lucide="x"></i></button>
+          <button id="close-submit-btn" class="icon-btn" title="Fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
         </div>
         <div class="modal-body">
           <p class="modal-subtitle">Quem trabalhou principalmente nesta solução? (pode marcar mais de um)</p>
@@ -97,9 +100,9 @@
 
           <div id="grid-content" class="tab-content hidden" style="display: flex; flex-direction: column; align-items: center; padding: 10px;">
             <div class="grid-controls" style="margin-bottom: 10px; display: flex; gap: 8px; align-items: center;">
-                <button id="grid-prev" class="icon-btn" title="Passo Anterior"><i data-lucide="skip-back"></i></button>
-                <button id="grid-play" class="icon-btn" title="Auto-Play"><i data-lucide="play"></i></button>
-                <button id="grid-next" class="icon-btn" title="Próximo Passo"><i data-lucide="skip-forward"></i></button>
+                <button id="grid-prev" class="icon-btn" title="Passo Anterior" aria-label="Passo anterior"><i data-lucide="skip-back"></i></button>
+                <button id="grid-play" class="icon-btn" title="Auto-Play" aria-label="Auto-play"><i data-lucide="play"></i></button>
+                <button id="grid-next" class="icon-btn" title="Próximo Passo" aria-label="Próximo passo"><i data-lucide="skip-forward"></i></button>
                 <span id="grid-step-display" style="font-family: monospace; font-size: 14px; margin-left: 10px;">Passo: 0 / 0</span>
             </div>
             <div class="canvas-wrapper" style="background: #000; padding: 5px; border-radius: 8px; border: 1px solid #333;">
@@ -114,6 +117,7 @@
     </div>
 
 
+    <script type="module" src="/src/arena/tema.js"></script>
     <script type="module" src="/src/main.js"></script>
 
     <script>

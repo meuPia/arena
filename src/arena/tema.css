@@ -1,0 +1,117 @@
+/* Code Arena — tokens dos temas escuro (padrão) e claro. Carregado antes de arena.css em todas as páginas.
+   O tema ativo vem de data-theme no <html> (script inline do <head> + src/arena/tema.js). */
+@import "@fontsource/chakra-petch/latin-500.css";
+@import "@fontsource/chakra-petch/latin-600.css";
+@import "@fontsource/chakra-petch/latin-700.css";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/jetbrains-mono/latin-400.css";
+@import "@fontsource/jetbrains-mono/latin-600.css";
+
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+  --a-bg: #07090D;
+  --a-surface: #0E121A;
+  --a-surface-2: #0A0D13;
+  --a-surface-3: #131926;
+  --a-border: #1B2230;
+  --a-border-forte: #2E384A;
+  --a-text: #E6EDF5;
+  --a-text-2: #C3CCD8;
+  --a-muted: #8B98AB;
+  --a-accent: #C6FF3D;
+  --a-accent-hover: #D8FF73;
+  --a-accent-ink: #0A0D06;
+  --a-accent-text: #C6FF3D;
+  --a-accent-sombra: transparent;
+  --a-accent-bg: rgba(198, 255, 61, .07);
+  --a-accent-borda: rgba(198, 255, 61, .5);
+  --a-info: #38E1FF;
+  --a-info-bg: rgba(56, 225, 255, .08);
+  --a-info-borda: rgba(56, 225, 255, .45);
+  --a-fail: #FF7A8A;
+  --a-fail-bg: rgba(255, 122, 138, .1);
+  --a-ok: var(--a-accent-text);
+  --a-forte-bg: #0E121A;
+  --a-forte-borda: #2E384A;
+  --a-forte-text: #38E1FF;
+  --a-marca-bg: #C6FF3D;
+  --a-marca-ink: #0A0D06;
+  --a-grade: rgba(198, 255, 61, .04);
+  --a-sombra: none;
+  --a-overlay: rgba(0, 0, 0, .65);
+  --a-topo-bg: rgba(10, 13, 19, .92);
+
+  --a-bronze: #E9A36C; --a-bronze-bg: rgba(214, 138, 78, .14); --a-bronze-borda: rgba(214, 138, 78, .4);
+  --a-silver: #C9D2DB; --a-silver-bg: rgba(184, 194, 204, .12); --a-silver-borda: rgba(184, 194, 204, .35);
+  --a-gold: #F2C14E; --a-gold-bg: rgba(242, 193, 78, .12); --a-gold-borda: rgba(242, 193, 78, .4);
+  --a-extra: #FF6FB4; --a-extra-bg: rgba(255, 79, 163, .12); --a-extra-borda: rgba(255, 79, 163, .4);
+
+  /* editor e terminal (também usados pelo tema do CodeMirror/Xterm em editor-tema.js) */
+  --a-editor-bg: #0B0E14;
+  --a-terminal-bg: #06080B;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --a-bg: #F2F4F7;
+  --a-surface: #FFFFFF;
+  --a-surface-2: #F7F8FA;
+  --a-surface-3: #EEF1F5;
+  --a-border: #DCE1E8;
+  --a-border-forte: #C9D0DA;
+  --a-text: #11161E;
+  --a-text-2: #3A4452;
+  --a-muted: #5A6576;
+  --a-accent: #C6FF3D;
+  --a-accent-hover: #B4F01F;
+  --a-accent-ink: #0A0D06;
+  --a-accent-text: #3F6A00;
+  --a-accent-sombra: #8FC21A;
+  --a-accent-bg: #F3FBE3;
+  --a-accent-borda: #9CCB3A;
+  --a-info: #0A6E8F;
+  --a-info-bg: #E8F5FA;
+  --a-info-borda: #8CC7DC;
+  --a-fail: #C2213A;
+  --a-fail-bg: #FDE3E6;
+  --a-forte-bg: #11161E;
+  --a-forte-borda: #11161E;
+  --a-forte-text: #C6FF3D;
+  --a-marca-bg: #11161E;
+  --a-marca-ink: #C6FF3D;
+  --a-grade: rgba(17, 22, 30, .05);
+  --a-sombra: 0 10px 24px rgba(17, 22, 30, .08);
+  --a-overlay: rgba(17, 22, 30, .45);
+  --a-topo-bg: rgba(247, 248, 250, .94);
+
+  --a-bronze: #8F4E17; --a-bronze-bg: #FBEBDD; --a-bronze-borda: #E2B48C;
+  --a-silver: #4A5563; --a-silver-bg: #EEF1F4; --a-silver-borda: #BCC5D0;
+  --a-gold: #7A5A00; --a-gold-bg: #FCF3D6; --a-gold-borda: #E3C56A;
+  --a-extra: #B0145F; --a-extra-bg: #FDE6F1; --a-extra-borda: #F0A3C8;
+
+  --a-editor-bg: #FFFFFF;
+  --a-terminal-bg: #FAFBFC;
+}
+
+:root {
+  --a-font-display: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --a-font-text: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --a-font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --a-chanfro: 10px;
+
+  /* Variáveis do Lab (src/style.css), mapeadas para os tokens da Arena nos dois temas. */
+  --bg-color: var(--a-bg);
+  --text-color: var(--a-text);
+  --header-bg: var(--a-surface-2);
+  --border-color: var(--a-border);
+  --primary-color: var(--a-accent);
+}
+[data-theme="dark"], [data-theme="light"] {
+  --bg-color: var(--a-bg);
+  --text-color: var(--a-text);
+  --header-bg: var(--a-surface-2);
+  --border-color: var(--a-border);
+  --primary-color: var(--a-accent);
+}

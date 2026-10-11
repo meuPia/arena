@@ -4,25 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Placar · meuPiá Challenge</title>
+    <script>try{document.documentElement.dataset.theme=localStorage.getItem("arena_tema")==="light"?"light":"dark"}catch(e){}</script>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="stylesheet" href="/src/arena/tema.css" />
     <link rel="stylesheet" href="/src/arena/arena.css" />
   </head>
-  <body class="arena-pagina arena-telao">
+  <body class="arena-pagina arena-telao arena-grade-fundo">
     <header class="arena-placar-topo">
       <div>
-        <p class="arena-sobretitulo">meuPiá Challenge · Univille</p>
+        <p class="arena-terminal-linha">&gt; meuPiá Challenge · Univille</p>
         <h1 id="evento">CODE CHALLENGE — SYSTEM RECOVERY</h1>
       </div>
-      <div class="arena-kpi grande"><span id="relogio">--:--</span><small id="relogio-rotulo">restante</small></div>
+      <div class="arena-placar-dados">
+        <div id="faixa-freeze" class="arena-freeze a-chanfro hidden" role="status">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="2" x2="12" y2="22"></line><line x1="4.9" y1="6" x2="19.1" y2="18"></line><line x1="19.1" y1="6" x2="4.9" y2="18"></line></svg>
+          <div><strong>Placar congelado</strong><span>as equipes continuam submetendo · resultado final no encerramento</span></div>
+        </div>
+        <div class="arena-kpi grande forte a-chanfro"><span id="relogio">--:--</span><small id="relogio-rotulo">restante</small></div>
+      </div>
     </header>
-    <p id="faixa-freeze" class="arena-freeze hidden">❄️ PLACAR CONGELADO — as equipes continuam submetendo. O resultado final será revelado no encerramento.</p>
-    <table class="arena-tabela">
-      <thead>
-        <tr><th>#</th><th>Equipe</th><th>Bronze</th><th>Silver</th><th>Gold</th><th>Extra</th><th>Pontos</th><th title="Módulos com 100% dos testes extras">Completos</th><th title="Soma dos caracteres das melhores soluções completas (menor vence o desempate)">Caracteres</th></tr>
-      </thead>
-      <tbody id="linhas"></tbody>
-    </table>
-    <p class="arena-legenda">● completo (100% dos testes extras) · ◐ aceito parcial · ○ não enviado — desempate: completos, menor código, quem chegou antes</p>
+    <div class="arena-caixa-tabela">
+      <table class="arena-tabela">
+        <thead>
+          <tr><th>#</th><th>Equipe</th><th class="nivel-Bronze">Bronze</th><th class="nivel-Silver">Silver</th><th class="nivel-Gold">Gold</th><th class="nivel-Extra">Extra</th><th class="pts">Pontos</th><th class="num" title="Módulos com 100% dos testes extras">Completos</th><th class="num" title="Soma dos caracteres das melhores soluções completas (menor vence o desempate)">Caracteres</th></tr>
+        </thead>
+        <tbody id="linhas"></tbody>
+      </table>
+    </div>
+    <p class="arena-legenda">
+      <span><span class="bolas">●</span> completo (100% dos testes extras)</span>
+      <span><span class="meias">◐</span> aceito parcial</span>
+      <span><span class="vazias">○</span> não enviado</span>
+      <span class="desempate">desempate: completos, menor código, quem chegou antes</span>
+    </p>
     <script type="module" src="/src/arena/placar.js"></script>
   </body>
 </html>

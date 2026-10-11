@@ -32,6 +32,14 @@ export function setupSubmissao(view, desafio) {
   let fimEspera = 0;
   let timer = null;
 
+  // Cabeçalho da IDE: código (na cor do nível), módulo e melhor pontuação
+  const topo = document.getElementById("missao-topo");
+  if (topo) {
+    topo.innerHTML = `<span class="a-selo a-chanfro nivel-${escapar(desafio.nivel)}">${escapar(desafio.codigo)}</span>
+      <strong>${escapar(desafio.modulo || "")}</strong><span class="arena-missao-sub">${escapar(desafio.problemaTecnico || "")}</span>
+      <span id="arena-melhor-topo" class="arena-missao-melhor"></span>`;
+  }
+
   // Cabeçalho da missão no painel de instruções
   const header = document.querySelector(".desafio-header");
   if (header) {
@@ -41,6 +49,11 @@ export function setupSubmissao(view, desafio) {
   }
 
   function atualizarStatus() {
+    const topoMelhor = document.getElementById("arena-melhor-topo");
+    if (topoMelhor) {
+      const mt = desafio.melhor;
+      topoMelhor.textContent = mt ? `melhor ${mt.pontos}/${desafio.pontos} pts${mt.completo ? " ✅" : ""}` : `${desafio.pontos} pts`;
+    }
     const el = document.getElementById("arena-status-missao");
     if (!el) return;
     const m = desafio.melhor;

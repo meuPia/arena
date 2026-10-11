@@ -4,25 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Code Arena · meuPiá Challenge</title>
+    <script>try{document.documentElement.dataset.theme=localStorage.getItem("arena_tema")==="light"?"light":"dark"}catch(e){}</script>
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="stylesheet" href="/src/arena/tema.css" />
     <link rel="stylesheet" href="/src/arena/arena.css" />
     <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
   </head>
-  <body class="arena-pagina">
+  <body class="arena-pagina arena-grade-fundo">
     <header class="arena-topo">
-      <div class="arena-marca"><img src="/logo.svg" alt="" /> meuPiá Challenge</div>
-      <div id="topo-equipe" class="arena-topo-equipe"></div>
+      <div class="arena-marca"><span class="arena-marca-icone a-chanfro" aria-hidden="true"><i data-lucide="code-xml"></i></span><span>meuPiá<span class="arena-marca-destaque">&nbsp;ARENA</span></span></div>
+      <div class="arena-topo-dados">
+        <div id="topo-equipe" class="arena-topo-equipe"></div>
+        <button type="button" class="a-icone-botao" data-alternar-tema aria-label="Alternar tema"><i data-lucide="sun"></i></button>
+      </div>
     </header>
 
     <main class="arena-main">
       <section id="tela-login" class="arena-login hidden">
-        <p class="arena-sobretitulo">Univille · Engenharia de Software</p>
-        <h1>CODE CHALLENGE — SYSTEM RECOVERY</h1>
-        <p class="arena-lead">Diversos serviços do sistema estão comprometidos. Sua equipe tem até o final da noite para recuperar o maior número possível de módulos.</p>
-        <form id="form-login" class="arena-form">
-          <label for="codigo-equipe">Código da equipe</label>
+        <div class="arena-login-texto">
+          <p class="arena-terminal-linha">&gt; Univille · Engenharia de Software_</p>
+          <h1 class="arena-titulo-evento">System<br /><span>Recovery</span></h1>
+          <p class="arena-lead">Diversos serviços do sistema estão comprometidos. Sua equipe tem até o final da noite para recuperar o maior número possível de módulos.</p>
+          <div class="arena-selos">
+            <span class="a-selo a-chanfro nivel-Bronze">Bronze</span>
+            <span class="a-selo a-chanfro nivel-Silver">Silver</span>
+            <span class="a-selo a-chanfro nivel-Gold">Gold</span>
+            <span class="a-selo a-chanfro nivel-Extra">Extra</span>
+          </div>
+        </div>
+        <form id="form-login" class="arena-form a-hud">
+          <h2 class="arena-form-titulo">Conectar equipe</h2>
+          <p class="arena-form-sub">Use o código entregue pela banca.</p>
+          <label for="codigo-equipe" class="a-rotulo">Código da equipe</label>
           <input id="codigo-equipe" class="arena-input" autocomplete="off" autocapitalize="characters" required placeholder="Ex.: ORION-7K2Q" />
-          <button class="arena-primario" type="submit"><i data-lucide="log-in"></i> Entrar na Code Arena</button>
+          <button class="arena-primario a-chanfro" type="submit">Entrar na Code Arena <i data-lucide="arrow-right"></i></button>
           <p id="erro-login" class="arena-erro" role="alert"></p>
         </form>
       </section>
@@ -30,13 +45,17 @@
       <section id="tela-painel" class="hidden">
         <div class="arena-faixa">
           <div>
-            <p class="arena-sobretitulo" id="evento-nome"></p>
+            <p class="arena-terminal-linha" id="evento-nome"></p>
             <h1 id="equipe-nome"></h1>
           </div>
           <div class="arena-faixa-dados">
-            <div class="arena-kpi"><span id="kpi-pontos">0</span><small>pontos</small></div>
-            <div class="arena-kpi"><span id="kpi-relogio">--:--</span><small id="kpi-relogio-rotulo">restante</small></div>
+            <div class="arena-kpi"><span id="kpi-pontos" class="destaque">0</span><small>pontos</small></div>
+            <div class="arena-kpi forte"><span id="kpi-relogio">--:--</span><small id="kpi-relogio-rotulo">restante</small></div>
           </div>
+        </div>
+        <div class="arena-progresso">
+          <div class="arena-progresso-rotulo"><span>Módulos restaurados</span><span id="progresso-texto">0 / 0</span></div>
+          <div id="progresso-barra" class="arena-progresso-barra" aria-hidden="true"></div>
         </div>
         <p id="situacao" class="arena-situacao"></p>
         <div id="niveis" class="arena-niveis"></div>
@@ -47,6 +66,7 @@
       </section>
     </main>
 
+    <script type="module" src="/src/arena/tema.js"></script>
     <script type="module" src="/src/arena/painel.js"></script>
   </body>
 </html>

@@ -1,6 +1,5 @@
 import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, basicSetup } from "codemirror";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { history } from "@codemirror/commands";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -13,12 +12,15 @@ import { setupLayout } from "./ui/layout.js";
 import { setupSubmissao } from "./arena/submissao.js";
 import { gravarRascunho } from "./arena/api.js";
 import { GridManager } from "./engine/grid/gridManager.js";
+import { temaAtual } from "./arena/tema.js";
+import { extensoesEditor, temaTerminal } from "./arena/editor-tema.js";
 
 const hasDesafio = await carregarDesafioDaURL();
 if (!hasDesafio) throw new Error("[arena] sem missão: redirecionando ao painel");
 
 const term = new Terminal({ 
-  theme: { background: '#000000', foreground: '#ffffff' }, 
+  theme: temaTerminal(temaAtual()), // Arena: tema do terminal segue o tema da página
+  fontFamily: '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace',
   cursorBlink: true, 
   fontSize: 14 
 });
@@ -60,7 +62,7 @@ const view = new EditorView({
       meuPiaLanguage, 
       meuPiaAutocompletion,
       meuPiaErroCompilacao,
-      themeConfig.of(oneDark), 
+      themeConfig.of(extensoesEditor(temaAtual())), 
       history(), 
       EditorView.updateListener.of((u) => {
         if (u.docChanged && desafioAtual) gravarRascunho(desafioAtual.codigo, u.state.doc.toString());
@@ -72,6 +74,12 @@ const view = new EditorView({
 });
 
 setupToolbar(view, term, themeConfig);
+
+// Arena: troca de tema (botão da IDE ou outra aba) reconfigura editor e terminal sem perder código nem histórico.
+window.addEventListener("arena:tema", (ev) => {
+  view.dispatch({ effects: themeConfig.reconfigure(extensoesEditor(ev.detail.tema)) });
+  term.options.theme = temaTerminal(ev.detail.tema);
+});
 setupLayout(term, fitAddon);
 
 if (hasDesafio) {

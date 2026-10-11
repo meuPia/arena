@@ -17,7 +17,8 @@ O **meuPiá-arena** foi criado para apoiar competições e maratonas de programa
 - **Registro de autoria**, indicando quem trabalhou em cada solução;
 - **Cooldown de tentativas**, para ajudar no controle da dinâmica da competição;
 - **Placar em tempo real**, com opção de exibição para telão;
-- **Modo administrativo**, para acompanhamento de submissões e operação do evento.
+- **Modo administrativo**, para acompanhamento de submissões e operação do evento;
+- **Visual próprio com temas escuro e claro**, lembrados pelo navegador, e editor com cores pensadas para leitura.
 
 ## Como funciona
 
