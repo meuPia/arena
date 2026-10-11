@@ -206,6 +206,8 @@ def _importar_equipes(autor, _dados, db):
     if arena.equipes_do_banco(db):
         raise Erro(409, "O banco já tem equipes: a importação só vale para o banco vazio.")
     lista, origem = arena.equipes_arquivo()
+    if not lista:
+        raise Erro(409, "Não há equipes para importar: crie as equipes no painel.")
     agora = time.time()
     for e in lista:
         _gravar_equipe(db, {"id": e["id"], "nome": e["nome"], "codigo": e["codigo"], "versao": 0, "criadaEm": agora})

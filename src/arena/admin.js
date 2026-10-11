@@ -15,7 +15,8 @@ const ERROS = {
   provedor_invalido: "Provedor de login não configurado.",
   cancelado: "Login cancelado.",
 };
-const ORIGENS = { env: "da variável ARENA_EQUIPES", arquivo: "de arena/equipes.json", exemplo: "do arquivo de exemplo" };
+const ORIGENS = { env: "As equipes ainda vêm da variável ARENA_EQUIPES.", arquivo: "As equipes ainda vêm de arena/equipes.json.",
+  exemplo: "As equipes ainda vêm do arquivo de exemplo (códigos públicos: só para testes)." };
 
 const ABAS = [
   { id: "equipes", rotulo: "Equipes", papel: "admin", carregar: carregarEquipes },
@@ -131,10 +132,12 @@ async function carregarEquipes() {
   const r = await admin("equipes");
   equipesCache = r.equipes;
   const noBanco = r.origem === "banco";
+  const semNenhuma = r.origem === "nenhuma";
   $("aviso-origem").classList.toggle("hidden", noBanco);
-  $("aviso-origem").textContent = noBanco ? "" : `As equipes ainda vêm ${ORIGENS[r.origem] || r.origem}. `
-    + "Importe-as para o banco para editar, gerar códigos e cadastrar participantes.";
-  $("importar-equipes").classList.toggle("hidden", noBanco);
+  $("aviso-origem").textContent = noBanco ? "" : semNenhuma
+    ? "Nenhuma equipe cadastrada ainda. Crie as equipes abaixo."
+    : `${ORIGENS[r.origem] || r.origem} Importe-as para o banco para editar, gerar códigos e cadastrar participantes.`;
+  $("importar-equipes").classList.toggle("hidden", noBanco || semNenhuma);
   $("equipes").innerHTML = r.equipes.map((e) => `
     <tr>
       <td class="nome">${escapar(e.nome)}</td>

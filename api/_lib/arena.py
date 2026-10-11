@@ -143,13 +143,16 @@ def gerar_codigo(indice, existentes=()):
 
 def equipes_arquivo():
     """(lista, origem) das equipes fora do banco: ARENA_EQUIPES ('env'), arena/equipes.json ('arquivo')
-    ou arena/equipes.exemplo.json ('exemplo'). Servem de importação inicial para o banco."""
+    ou arena/equipes.exemplo.json ('exemplo', nunca em produção: os códigos dele são públicos).
+    Servem de importação inicial para o banco. Sem nenhuma fonte: ([], 'nenhuma')."""
     bruto = os.environ.get("ARENA_EQUIPES")
     if bruto:
         return json.loads(bruto), "env"
     caminho = os.path.join(DIR_ARENA, "equipes.json")
     if os.path.exists(caminho):
         return _ler_json(caminho), "arquivo"
+    if store.em_producao():
+        return [], "nenhuma"
     return _ler_json(os.path.join(DIR_ARENA, "equipes.exemplo.json")), "exemplo"
 
 

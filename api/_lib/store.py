@@ -199,6 +199,10 @@ class Local:
         self._tx(lambda d: [d.pop(c, None) for c in chaves])
 
 
+def em_producao():
+    return os.environ.get("VERCEL_ENV") == "production"
+
+
 def abrir():
     sb_url = os.environ.get("SUPABASE_URL")
     sb_chave = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SECRET_KEY")
@@ -208,6 +212,10 @@ def abrir():
     tok = os.environ.get("KV_REST_API_TOKEN") or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
     if url and tok:
         return RedisRest(url, tok)
+    if em_producao():
+        # Na Vercel o /tmp é efêmero e separado por instância: perderia submissões e mostraria os
+        # desafios e as equipes de exemplo. Melhor falhar alto.
+        raise RuntimeError("Banco não configurado em produção: defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY")
     return Local(os.environ.get("ARENA_ARQUIVO_LOCAL", "/tmp/meupia-arena.json"))
 
 

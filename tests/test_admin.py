@@ -239,3 +239,26 @@ def test_placar_publico_segue_o_freeze_mesmo_com_banca_logada(db, monkeypatch):
         st, _, real = chamar("admin", caminho="/api/admin?acao=placar", cabecalhos=c)
         assert st == 200 and not real["congelado"] and linha(real)["pontos"] == 10
     assert chamar("admin", caminho="/api/admin?acao=placar")[0] == 401
+
+
+# ---------------- produção nunca usa /tmp nem as equipes de exemplo ----------------
+
+def test_producao_sem_banco_falha_alto(monkeypatch):
+    for v in ("SUPABASE_URL", "KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
+        monkeypatch.delenv(v, raising=False)
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    with pytest.raises(RuntimeError, match="SUPABASE_URL"):
+        store.abrir()
+
+
+def test_producao_nao_usa_equipes_de_exemplo(db, monkeypatch):
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    assert arena.equipes_arquivo() == ([], "nenhuma")
+    with pytest.raises(Erro):
+        servico.login("TROQUE-ESTE-CODIGO-1", db=db)
+    assert ex("equipes", db=db) == {"origem": "nenhuma", "equipes": []}
+    with pytest.raises(Erro) as e:
+        ex("importar_equipes", db=db)
+    assert e.value.status == 409
+    ex("criar_equipe", {"nome": "Orion"}, db)  # sem fonte antiga: criar direto no painel
+    assert [e["nome"] for e in arena.equipes(db).values()] == ["Orion"]
