@@ -119,6 +119,10 @@ def test_chaves_de_conteudo_nao_dependem_do_prefixo(monkeypatch):
     assert (store.k_desafios(), store.k_segredos(), store.k_validacao()) == a
     assert a == ("conteudo:desafios", "conteudo:segredos", "conteudo:validacao")
     assert store.k_log().startswith("evento:")
+    # equipes, participantes e perfis valem para todas as rodadas; ajustes são da rodada (ids de submissão)
+    assert (store.k_equipes(), store.k_participantes(), store.k_usuarios()) == \
+        ("conteudo:equipes", "conteudo:participantes", "conteudo:usuarios")
+    assert store.k_ajustes() == "evento:ajustes"
     monkeypatch.setenv("ARENA_CONTEUDO", "univille")
     assert store.k_desafios() == "univille:desafios"
 

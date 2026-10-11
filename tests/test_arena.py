@@ -141,8 +141,15 @@ def test_placar_freeze_mostra_melhor_ate_o_freeze():
 
 
 def test_token():
-    assert ler_token(emitir_token("equipe1")) == "equipe1"
+    assert ler_token(emitir_token("equipe1")) == ("equipe1", 0)
+    assert ler_token(emitir_token("equipe1", 3)) == ("equipe1", 3)
     assert ler_token(emitir_token("equipe1") + "x") is None
+    # formato antigo (só o id, antes da versão): continua válido como versão 0
+    import base64 as b64, hashlib, hmac as hm
+    from _lib import web
+    corpo = b64.urlsafe_b64encode(b"equipe1").decode().rstrip("=")
+    antigo = f"{corpo}.{hm.new(web._segredo(), corpo.encode(), hashlib.sha256).hexdigest()[:32]}"
+    assert ler_token(antigo) == ("equipe1", 0)
 
 
 # ---------------- armazenamento ----------------
@@ -361,3 +368,60 @@ def test_versao_do_core_igual_no_navegador_e_no_juiz():
     navegador = re.search(r'let version\s*=\s*"([^"]+)"', wasm).group(1)
     juiz_ = re.search(r"meupia-core==([\w.]+)", req).group(1)
     assert navegador == juiz_, f"navegador usa {navegador}, juiz usa {juiz_}"
+
+
+# ---------------- códigos e equipes no banco ----------------
+
+def test_gerar_codigo_formato_e_unicidade(monkeypatch):
+    import re
+    c = arena.gerar_codigo(0)
+    assert re.fullmatch(r"ORION-[A-HJ-NP-Z2-9]{6}", c)
+    assert arena.gerar_codigo(17).startswith("VEGA-")  # as palavras se repetem em ciclo
+    seq = iter(["A"] * 6 + ["B"] * 6)
+    monkeypatch.setattr(arena.secrets, "choice", lambda _alf: next(seq))
+    assert arena.gerar_codigo(0, ["orion-aaaaaa"]) == "ORION-BBBBBB"  # repetido (sem caixa) é refeito
+
+
+def test_script_gerar_equipes(tmp_path):
+    import subprocess
+    destino = tmp_path / "equipes.json"
+    subprocess.run([sys.executable, os.path.join(RAIZ, "scripts", "gerar_equipes.py"), "2", str(destino)],
+                   check=True, capture_output=True)
+    eqs = json.loads(destino.read_text())
+    assert [e["id"] for e in eqs] == ["equipe1", "equipe2"] and len({e["codigo"] for e in eqs}) == 2
+
+
+def test_equipes_banco_primeiro_e_arquivo_com_banco_vazio(db):
+    assert set(arena.equipes(db)) == {"equipe1", "equipe2"}  # banco vazio: equipes.exemplo.json
+    assert arena.equipes(db)["equipe1"]["versao"] == 0
+    db.hset(store.k_equipes(), "e-orion", json.dumps({"id": "e-orion", "nome": "Orion", "codigo": "ORION-ABCDEF",
+                                                      "versao": 2}))
+    db.hset(store.k_participantes(), "p1", json.dumps({"id": "p1", "equipe": "e-orion", "nome": "Ana",
+                                                       "semestre": "2º"}))
+    eqs = arena.equipes(db)
+    assert list(eqs) == ["e-orion"] and eqs["e-orion"]["integrantes"] == ["Ana (2º)"]
+    assert arena.equipe_por_codigo("orion-abcdef", db)["id"] == "e-orion"
+    assert arena.equipe_por_codigo("TROQUE-ESTE-CODIGO-1", db) is None  # o arquivo não vale mais
+
+
+def test_token_da_equipe_cai_ao_regenerar_ou_excluir(db):
+    from handlers import chamar
+    db.hset(store.k_equipes(), "e-orion", json.dumps({"id": "e-orion", "nome": "Orion", "codigo": "ORION-ABCDEF",
+                                                      "versao": 0}))
+    tok = servico.login("ORION-ABCDEF", db=db)["token"]
+    auth = {"Authorization": f"Bearer {tok}"}
+    assert chamar("missoes", cabecalhos=auth)[0] == 200
+    db.hset(store.k_equipes(), "e-orion", json.dumps({"id": "e-orion", "nome": "Orion", "codigo": "ORION-GHJKLM",
+                                                      "versao": 1}))
+    assert chamar("missoes", cabecalhos=auth)[0] == 401  # código regenerado
+    tok2 = servico.login("ORION-GHJKLM", db=db)["token"]
+    assert chamar("missoes", cabecalhos={"Authorization": f"Bearer {tok2}"})[0] == 200
+    db.hset(store.k_equipes(), "e-vega", json.dumps({"id": "e-vega", "nome": "Vega", "codigo": "VEGA-ABCDEF"}))
+    db.hdel(store.k_equipes(), "e-orion")
+    assert chamar("missoes", cabecalhos={"Authorization": f"Bearer {tok2}"})[0] == 401  # equipe excluída
+
+
+def test_token_antigo_vale_com_equipes_do_arquivo(db):
+    from handlers import chamar
+    tok = emitir_token("equipe1")
+    assert chamar("missoes", cabecalhos={"Authorization": f"Bearer {tok}"})[0] == 200

@@ -7,9 +7,17 @@ from . import arena, juiz, store
 from .web import Erro, emitir_token
 
 
-def _aceitas(db, eid):
-    """Submissões aceitas da equipe (registros compactos, sem código-fonte)."""
-    return [json.loads(x) for x in db.lrange(store.k_aceitas(eid), 0, -1)]
+def ajustes(db):
+    """{id da submissão: ajuste da banca} desta rodada."""
+    return {sid: json.loads(v) for sid, v in db.hgetall(store.k_ajustes()).items()}
+
+
+def _aceitas(db, eid, ajustes_=None, todos=None):
+    """Submissões aceitas da equipe (registros compactos, sem código-fonte), com os pontos EFETIVOS:
+    é aqui, num ponto só, que os ajustes da banca entram em melhor, placar, freeze e desbloqueio."""
+    brutas = [json.loads(x) for x in db.lrange(store.k_aceitas(eid), 0, -1)]
+    return arena.aplicar_ajustes(brutas, ajustes(db) if ajustes_ is None else ajustes_,
+                                 arena.desafios(db) if todos is None else todos)
 
 
 def _estado(db, eid):
@@ -24,8 +32,8 @@ def _resumo(r):
     return None if r is None else {"pontos": r["pontos"], "completo": r["completo"], "caracteres": r["caracteres"]}
 
 
-def _equipe(eid):
-    e = arena.equipes().get(eid)
+def _equipe(eid, db=None):
+    e = arena.equipes(db).get(eid)
     if not e:
         raise Erro(401, "Equipe não encontrada. Entre novamente.")
     return e
@@ -43,16 +51,16 @@ def login(codigo, ip="", db=None, agora=None):
     chave, campo = store.k_login(int(agora // LOGIN_JANELA)), ip or "?"
     if int(db.hget(chave, campo) or 0) >= LOGIN_MAX_ERROS:
         raise Erro(429, "Muitas tentativas de login. Aguarde alguns minutos.")
-    e = arena.equipe_por_codigo(codigo)
+    e = arena.equipe_por_codigo(codigo, db)
     if not e:
         db.hincrby(chave, campo, 1)
         raise Erro(401, "Código de equipe inválido.")
-    return {"token": emitir_token(e["id"]), "equipe": {"id": e["id"], "nome": e["nome"]}}
+    return {"token": emitir_token(e["id"], e.get("versao", 0)), "equipe": {"id": e["id"], "nome": e["nome"]}}
 
 
 def missoes(eid, db=None):
     db = db or store.abrir()
-    e = _equipe(eid)
+    e = _equipe(eid, db)
     cfg, todos = arena.config(), arena.desafios(db)
     jan = arena.janela(cfg)
     aceitas, tentativas, ultima = _estado(db, eid)
@@ -83,7 +91,7 @@ def missoes(eid, db=None):
 
 def missao(eid, codigo, db=None):
     db = db or store.abrir()
-    _equipe(eid)
+    e = _equipe(eid, db)
     cfg, todos = arena.config(), arena.desafios(db)
     d = todos.get(codigo)
     if not d:
@@ -102,7 +110,7 @@ def missao(eid, codigo, db=None):
         "completo": bool(melhores.get(codigo, {}).get("completo")),
         "tentativas": tentativas.get(codigo, 0),
         "espera": arena.cooldown_restante(tentativas.get(codigo, 0), ultima.get(codigo), cfg),
-        "integrantes": _equipe(eid).get("integrantes", []),
+        "integrantes": e.get("integrantes", []),
         "situacao": jan["situacao"],
     })
     return out
@@ -111,7 +119,7 @@ def missao(eid, codigo, db=None):
 def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
     db = db or store.abrir()
     agora = agora if agora is not None else time.time()
-    e = _equipe(eid)
+    e = _equipe(eid, db)
     cfg, todos = arena.config(), arena.desafios(db)
     d = todos.get(codigo)
     if not d:
@@ -173,31 +181,41 @@ def placar(admin=False, db=None, agora=None):
     jan = arena.janela(cfg, agora)
     congelado = (not admin and not arena.modo_ensaio() and jan["agora"] >= jan["freeze"]
                  and not _revelado())
-    equipes = {eid: {"nome": e["nome"]} for eid, e in arena.equipes().items()}
-    aceitas = {eid: _aceitas(db, eid) for eid in equipes}
+    equipes = {eid: {"nome": e["nome"]} for eid, e in arena.equipes(db).items()}
+    ajs = ajustes(db)
+    aceitas = {eid: _aceitas(db, eid, ajs, todos) for eid in equipes}
     linhas = arena.placar(equipes, aceitas, todos, cfg, ate=jan["freeze"] if congelado else None)
     totais = {n: sum(1 for d in todos.values() if d["nivel"] == n) for n in cfg["niveis"]}
     return {"evento": cfg["evento"], "janela": jan, "congelado": congelado, "totais": totais, "linhas": linhas}
 
 
+def _com_ajuste(s, ajs):
+    """Entrada do log com `pontosEfetivos` (calculados ou ajustados) e o `ajuste`, se houver."""
+    a = ajs.get(s.get("id")) if s.get("id") else None
+    s["ajuste"] = a
+    s["pontosEfetivos"] = a["pontos"] if a else s.get("pontos", 0)
+    return s
+
+
 def submissao(sid, db=None):
-    """Uma entrada do log COM o código-fonte (só para a banca), ou None."""
+    """Uma entrada do log COM o código-fonte e o ajuste (só para a banca), ou None."""
     db = db or store.abrir()
     for x in db.lrange(store.k_log(), 0, -1):
         s = json.loads(x)
         if s.get("id") == sid:
-            return s
+            return _com_ajuste(s, ajustes(db))
     return None
 
 
 def submissoes(limite=200, db=None):
-    """Log para o placar do admin, sem o código-fonte (fica só no banco)."""
+    """Log para a banca (mais recente primeiro), sem o código-fonte (fica só no banco), com os ajustes."""
     db = db or store.abrir()
+    ajs = ajustes(db)
     out = []
     for x in db.lrange(store.k_log(), 0, limite - 1):
         s = json.loads(x)
         s.pop("fonte", None)
-        out.append(s)
+        out.append(_com_ajuste(s, ajs))
     return out
 
 

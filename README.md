@@ -75,10 +75,16 @@ De forma geral, o deploy envolve:
 
 ### Painel da banca (`/admin.html`)
 
-Admin e juízes entram com **Google** ou **GitHub** (OAuth). Só entram o root (identidades na variável
-secreta `ARENA_ROOT`) e as pessoas cadastradas na aba Perfis. O painel mostra o placar real (sem freeze),
-as submissões com o código-fonte e, para admins, os perfis e a auditoria. O `ADMIN_TOKEN` continua
-valendo como acesso de emergência, se o OAuth falhar.
+Admin e juízes entram com **Google**, **Microsoft** ou **GitHub** (OAuth). Só entram o root (identidades na
+variável secreta `ARENA_ROOT`) e as pessoas cadastradas na aba Perfis.
+
+- **juiz**: submissões com o código-fonte, ajuste de pontos (com motivo, desfazível) e placar real (sem freeze);
+- **admin**: tudo isso, mais equipes (criar, renomear, excluir, gerar novo código, imprimir os códigos),
+  participantes, perfis e auditoria.
+
+As equipes ficam no banco. Na primeira vez, o painel lê `ARENA_EQUIPES` (ou `arena/equipes.json`) e oferece
+**Importar equipes**, mantendo os códigos. O `ADMIN_TOKEN` continua valendo como acesso de emergência, se o
+OAuth falhar. O `/placar.html` mostra sempre o placar público (congelado no freeze), mesmo com a banca logada.
 
 Para ligar um provedor, registre um app OAuth com a URL de retorno `https://<domínio>/api/oauth_retorno`
 (e `http://localhost:8787/api/oauth_retorno` para testes; no GitHub, um app por URL) e defina
@@ -87,11 +93,25 @@ Para ligar um provedor, registre um app OAuth com a URL de retorno `https://<dom
 | Variável | Para quê |
 |---|---|
 | `OAUTH_GOOGLE_ID` / `OAUTH_GOOGLE_SECRET` | login com Google (escopos `openid email profile`) |
+| `OAUTH_MICROSOFT_ID` / `OAUTH_MICROSOFT_SECRET` | login com Microsoft (escopos `openid email profile`; vale o `preferred_username`) |
+| `OAUTH_MICROSOFT_TENANT` | opcional: tenant da Microsoft (padrão `common`) |
 | `OAUTH_GITHUB_ID` / `OAUTH_GITHUB_SECRET` | login com GitHub (escopos `read:user user:email`) |
-| `ARENA_ROOT` | JSON com as identidades do root, ex.: `{"google": "voce@gmail.com", "github": "seu-login"}`. Só na Vercel/`.env.local` |
+| `ARENA_ROOT` | JSON com as identidades do root, ex.: `{"google": "voce@gmail.com", "microsoft": "voce@exemplo.edu", "github": "seu-login"}`. Só na Vercel/`.env.local` |
 | `ARENA_URL` | opcional: origem fixa usada na URL de retorno (padrão: o host da requisição) |
 
 O `npm run local` lê do `.env.local` só essas variáveis (nunca as do banco).
+
+**Colocando o painel no ar (migração):**
+
+1. Faça o deploy com as variáveis OAuth vazias: o painel já funciona com o token de emergência, e as equipes
+   continuam vindo de `ARENA_EQUIPES`.
+2. Registre os apps OAuth com a URL de retorno `https://<domínio>/api/oauth_retorno` e configure `OAUTH_*`,
+   `ARENA_ROOT` e, se quiser, `ARENA_URL`. Refaça o deploy.
+3. Entre como root, clique em **Importar equipes** (ou crie as equipes do zero), cadastre os participantes e os
+   juízes e imprima os códigos.
+4. Depois de importar, `ARENA_EQUIPES` pode ser removida (o banco tem prioridade).
+5. Para voltar atrás, reverta o deploy: as equipes voltam a vir de `ARENA_EQUIPES`, e as equipes precisam
+   digitar o código de novo (o token novo leva a versão do código).
 
 ## Desenvolvimento e testes
 

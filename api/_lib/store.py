@@ -248,6 +248,18 @@ def k_login(janela):
     return f"{_p()}:login:{janela}"        # hash ip -> nº de logins errados na janela de 10 min
 
 
+def k_equipes():
+    return f"{_conteudo()}:equipes"        # hash id -> JSON {id, nome, codigo, versao, criadaEm}
+
+
+def k_participantes():
+    return f"{_conteudo()}:participantes"  # hash id -> JSON {id, equipe, nome, semestre, email}
+
+
+def k_ajustes():
+    return f"{_p()}:ajustes"               # hash id da submissão -> JSON {pontos, pontosJuiz, motivo, autor, t, ...}
+
+
 def k_usuarios():
     return f"{_conteudo()}:usuarios"       # hash email -> JSON {email, nome, github, papel} (perfis da banca)
 

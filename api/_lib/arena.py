@@ -1,6 +1,7 @@
 """Dados e regras da Code Arena: desafios, equipes, horário, desbloqueio, cooldown e placar."""
 import json
 import os
+import secrets
 import time
 from datetime import datetime
 
@@ -124,22 +125,65 @@ def publico(desafio):
     return {k: desafio[k] for k in CAMPOS_PUBLICOS if k in desafio}
 
 
-def equipes():
-    """Equipes vêm da variável ARENA_EQUIPES (JSON) ou de arena/equipes.json (fora do git)."""
+PALAVRAS = ["ORION", "VEGA", "LYRA", "NOVA", "ATLAS", "TITAN", "PULSAR", "QUASAR", "COMET", "NEBULA",
+            "DRACO", "RIGEL", "SIRIUS", "ALTAIR", "CYGNUS", "HYDRA"]
+ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # sem 0/O/1/I
+TAMANHO_CODIGO = 6  # 32^6 ≈ 1 bilhão de combinações por palavra (as palavras são públicas)
+
+
+def gerar_codigo(indice, existentes=()):
+    """Código PALAVRA-XXXXXX (gerador criptográfico), único entre `existentes` (sem diferenciar caixa)."""
+    usados = {c.strip().upper() for c in existentes}
+    for _ in range(20):
+        c = f"{PALAVRAS[indice % len(PALAVRAS)]}-" + "".join(secrets.choice(ALFABETO) for _ in range(TAMANHO_CODIGO))
+        if c not in usados:
+            return c
+    raise RuntimeError("não foi possível gerar um código único")
+
+
+def equipes_arquivo():
+    """(lista, origem) das equipes fora do banco: ARENA_EQUIPES ('env'), arena/equipes.json ('arquivo')
+    ou arena/equipes.exemplo.json ('exemplo'). Servem de importação inicial para o banco."""
     bruto = os.environ.get("ARENA_EQUIPES")
     if bruto:
-        lista = json.loads(bruto)
-    else:
-        caminho = os.path.join(DIR_ARENA, "equipes.json")
-        if not os.path.exists(caminho):
-            caminho = os.path.join(DIR_ARENA, "equipes.exemplo.json")
-        lista = _ler_json(caminho)
-    return {e["id"]: e for e in lista}
+        return json.loads(bruto), "env"
+    caminho = os.path.join(DIR_ARENA, "equipes.json")
+    if os.path.exists(caminho):
+        return _ler_json(caminho), "arquivo"
+    return _ler_json(os.path.join(DIR_ARENA, "equipes.exemplo.json")), "exemplo"
 
 
-def equipe_por_codigo(codigo):
+def participantes(db):
+    """{id: {id, equipe, nome, semestre, email}} cadastrados no banco."""
+    return {pid: json.loads(v) for pid, v in db.hgetall(store.k_participantes()).items()}
+
+
+def rotulo_participante(p):
+    return f"{p['nome']} ({p['semestre']})" if p.get("semestre") else p["nome"]
+
+
+def equipes_do_banco(db):
+    return {eid: json.loads(v) for eid, v in db.hgetall(store.k_equipes()).items()}
+
+
+def equipes(db=None):
+    """{id: equipe}. Com equipes no banco, só elas valem (integrantes = participantes como `Nome (semestre)`);
+    com o banco vazio, vale a fonte antiga (ARENA_EQUIPES ou arquivo), com versao 0."""
+    db = db or store.abrir()
+    banco = equipes_do_banco(db)
+    if banco:
+        parts = sorted(participantes(db).values(), key=lambda p: p["nome"].lower())
+        for eid, e in banco.items():
+            e["integrantes"] = [rotulo_participante(p) for p in parts if p.get("equipe") == eid]
+            e.setdefault("versao", 0)
+        return banco
+    lista, _ = equipes_arquivo()
+    return {e["id"]: {**e, "versao": 0} for e in lista}
+
+
+def equipe_por_codigo(codigo, db=None):
     codigo = (codigo or "").strip().upper()
-    for e in equipes().values():
+    for e in equipes(db).values():
         if e["codigo"].strip().upper() == codigo:
             return e
     return None
@@ -178,6 +222,21 @@ def janela(cfg=None, agora=None):
 # Fonte de verdade: a lista de submissões ACEITAS de cada equipe, registros compactos
 # {"t", "codigo", "pontos", "completo", "caracteres"} (sem código-fonte). Pontos, desbloqueio
 # e placar (vivo e congelado) são calculados a partir dela.
+
+def aplicar_ajustes(aceitas, ajustes, todos):
+    """Pontos efetivos: cópia das aceitas com o ajuste da banca aplicado (pura).
+    Ajustada: pontos = ajuste, pontosJuiz = original e completo só se era completa E vale o máximo do módulo."""
+    out = []
+    for r in aceitas:
+        a = ajustes.get(r.get("id")) if r.get("id") else None
+        if a is None:
+            out.append(r)
+            continue
+        maximo = todos[r["codigo"]]["pontos"] if r["codigo"] in todos else r["pontos"]
+        out.append({**r, "pontos": a["pontos"], "pontosJuiz": r["pontos"], "ajustado": True,
+                    "completo": bool(r["completo"]) and a["pontos"] == maximo})
+    return out
+
 
 def pontos_submissao(desafio, aprovados, total, cfg):
     """Pontos de uma submissão aceita, pelo modo de `pontuacao` da config."""

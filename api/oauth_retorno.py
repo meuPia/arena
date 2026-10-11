@@ -22,7 +22,7 @@ class handler(Base):
         except auth.ErroAuth as e:
             return Resposta(local=f"/admin.html?erro={e.motivo}", cookies=[apagar_oauth])
         p = auth.papel(ident["ids"], db)
-        autor = {"nome": ident["nome"], "papel": p and p["papel"]}
+        autor = {"nome": ident["nome"], "papel": p and p["papel"], "provedor": ident["provedor"]}
         if not p:
             # Fica na auditoria com as identidades tentadas, para o admin cadastrar a pessoa certa.
             admin.auditar(db, autor, "login_recusado", ident["provedor"], " ".join(ident["ids"]))

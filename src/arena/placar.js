@@ -1,49 +1,21 @@
 // Placar para o telão. Sem código/solução de ninguém: só o estado de cada módulo
 // (● completo, ◐ aceito parcial, ○ sem submissão aceita), pontos, completos e caracteres.
-// Admin: /placar.html#admin=TOKEN mostra o placar real (sem freeze) e as submissões.
-// O token sai da URL logo ao abrir (fica só na aba, em sessionStorage) e vai à API num cabeçalho.
-import { api, escapar, formatarRelogio } from "./api.js";
+// Sempre o placar público (congela no freeze). O placar real e o log ficam em /admin.html.
+import { api, formatarRelogio } from "./api.js";
 import { linhasPlacar } from "./placar-tabela.js";
 
 const $ = (id) => document.getElementById(id);
-
-function tokenAdmin() {
-  const daUrl = new URLSearchParams(location.hash.slice(1)).get("admin")
-    || new URLSearchParams(location.search).get("admin"); // formato antigo
-  try {
-    if (daUrl) sessionStorage.setItem("arena_admin", daUrl);
-    else return sessionStorage.getItem("arena_admin");
-  } catch { /* navegação privada: segue só com o valor da URL */ }
-  if (daUrl) history.replaceState(null, "", location.pathname);
-  return daUrl;
-}
-const admin = tokenAdmin();
 let janela = null;
 let deslocamento = 0;
 
-const fracao = (b) => (b && b.total ? `${b.aprovados}/${b.total}` : "–");
-
 async function atualizar() {
   let p;
-  try { p = await api.placar(admin); } catch { return; }
+  try { p = await api.placar(); } catch { return; }
   janela = p.janela;
   deslocamento = p.janela.agora - Date.now() / 1000;
   $("evento").textContent = p.evento;
   $("faixa-freeze").classList.toggle("hidden", !p.congelado);
   $("linhas").innerHTML = linhasPlacar(p.linhas);
-
-  if (p.submissoes) {
-    $("admin").classList.remove("hidden");
-    $("subs").innerHTML = p.submissoes.map((s) => `
-      <tr class="${s.status === "aceito" && s.completo ? "ok" : ""}">
-        <td>${new Date(s.t * 1000).toLocaleTimeString("pt-BR")}</td>
-        <td>${escapar(s.nome)}</td><td>${escapar(s.codigo)}</td><td>${s.tentativa}</td>
-        <td>${escapar(s.status)}${s.completo ? " ✅" : ""}</td>
-        <td>${fracao(s.exemplos)}</td><td>${fracao(s.extras)}</td>
-        <td>${s.pontos ?? "–"}</td><td>${s.caracteres ?? "–"}</td>
-        <td>${escapar((s.participantes || []).join(", "))}</td>
-      </tr>`).join("");
-  }
 }
 
 function relogio() {

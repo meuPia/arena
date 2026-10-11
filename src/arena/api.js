@@ -61,7 +61,7 @@ export const api = {
   missao: (codigo) => chamar(`/api/missoes?codigo=${encodeURIComponent(codigo)}`),
   submeter: (codigo, fonte, participantes) =>
     chamar("/api/submeter", { method: "POST", body: JSON.stringify({ codigo, fonte, participantes }) }),
-  placar: (admin) => chamar("/api/placar", admin ? { headers: { "X-Admin-Token": admin } } : {}),
+  placar: () => chamar("/api/placar"),
 };
 
 // Rascunho do código por equipe + missão (sobrevive a voltar ao painel / recarregar).

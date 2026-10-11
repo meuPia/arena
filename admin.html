@@ -33,20 +33,38 @@
 
       <section id="tela-painel" class="hidden">
         <nav id="abas" class="arena-abas" role="tablist"></nav>
+        <p id="erro-painel" class="arena-erro" role="alert"></p>
 
-        <section id="aba-placar" class="arena-aba hidden">
-          <p class="arena-situacao">Placar real, sem freeze. Não projete esta tela no telão.</p>
-          <table class="arena-tabela"><thead id="placar-cabecalho"></thead><tbody id="placar-linhas"></tbody></table>
-        </section>
-
-        <section id="aba-submissoes" class="arena-aba hidden">
-          <div class="arena-filtros">
-            <input id="filtro-subs" class="arena-input sem-caixa pequeno" placeholder="Filtrar por equipe, módulo, status ou participante" />
-            <button id="atualizar-subs" class="arena-secundario">Atualizar</button>
+        <section id="aba-equipes" class="arena-aba hidden">
+          <p id="aviso-origem" class="arena-situacao hidden"></p>
+          <div class="arena-form-linha">
+            <form id="form-equipe" class="arena-form-linha sem-margem">
+              <input name="nome" class="arena-input sem-caixa pequeno" placeholder="Nome da nova equipe" required maxlength="40" />
+              <button class="arena-primario" type="submit">Criar equipe</button>
+            </form>
+            <button id="importar-equipes" class="arena-secundario hidden">Importar equipes</button>
+            <button id="imprimir-equipes" class="arena-secundario">Imprimir códigos</button>
           </div>
           <table class="arena-tabela pequena">
-            <thead><tr><th>Hora</th><th>Equipe</th><th>Módulo</th><th>Tent.</th><th>Resultado</th><th>Exemplos</th><th>Extras</th><th>Pts</th><th>Car.</th><th>Participantes</th><th></th></tr></thead>
-            <tbody id="subs"></tbody>
+            <thead><tr><th>Equipe</th><th>Código</th><th>Integrantes</th><th>Pts</th><th>Completos</th><th>Subm.</th><th>Última</th><th></th></tr></thead>
+            <tbody id="equipes"></tbody>
+          </table>
+        </section>
+
+        <section id="aba-participantes" class="arena-aba hidden">
+          <form id="form-participante" class="arena-form-linha">
+            <input type="hidden" name="id" />
+            <select name="equipe" class="arena-input sem-caixa pequeno" required></select>
+            <input name="nome" class="arena-input sem-caixa pequeno" placeholder="Nome" required maxlength="60" />
+            <input name="semestre" class="arena-input sem-caixa pequeno curto" placeholder="Semestre (2º)" required maxlength="10" />
+            <input name="email" class="arena-input sem-caixa pequeno" type="email" placeholder="E-mail (opcional)" />
+            <button class="arena-primario" type="submit">Salvar</button>
+            <button id="cancelar-participante" class="arena-secundario hidden" type="button">Cancelar edição</button>
+          </form>
+          <p class="arena-aviso">Os participantes aparecem no modal de submissão da equipe como "Nome (semestre)". Mudanças não alteram submissões já feitas.</p>
+          <table class="arena-tabela pequena">
+            <thead><tr><th>Equipe</th><th>Nome</th><th>Semestre</th><th>E-mail</th><th></th></tr></thead>
+            <tbody id="participantes"></tbody>
           </table>
         </section>
 
@@ -58,12 +76,29 @@
             <select name="papel" class="arena-input sem-caixa pequeno"><option value="juiz">juiz</option><option value="admin">admin</option></select>
             <button class="arena-primario" type="submit">Salvar</button>
           </form>
-          <p class="arena-aviso">Salvar com um e-mail já cadastrado edita o perfil. Quem entra pelo Google é reconhecido pelo e-mail; pelo GitHub, pelo login ou por um e-mail verificado.</p>
-          <p id="erro-perfil" class="arena-erro" role="alert"></p>
+          <p class="arena-aviso">Salvar com um e-mail já cadastrado edita o perfil. Google e Microsoft reconhecem a pessoa pelo e-mail; o GitHub, pelo login ou por um e-mail verificado.</p>
           <table class="arena-tabela pequena">
             <thead><tr><th>Nome</th><th>E-mail</th><th>GitHub</th><th>Papel</th><th></th></tr></thead>
             <tbody id="perfis"></tbody>
           </table>
+        </section>
+
+        <section id="aba-submissoes" class="arena-aba hidden">
+          <div class="arena-filtros">
+            <select id="filtro-equipe" class="arena-input sem-caixa pequeno"></select>
+            <select id="filtro-modulo" class="arena-input sem-caixa pequeno"></select>
+            <select id="filtro-status" class="arena-input sem-caixa pequeno"></select>
+            <button id="atualizar-subs" class="arena-secundario">Atualizar</button>
+          </div>
+          <table class="arena-tabela pequena">
+            <thead><tr><th>Hora</th><th>Equipe</th><th>Módulo</th><th>Tent.</th><th>Resultado</th><th>Exemplos</th><th>Extras</th><th title="Pontos calculados pelo juiz">Pts juiz</th><th title="Pontos que valem (com o ajuste da banca)">Pts efetivos</th><th>Car.</th><th>Participantes</th><th></th></tr></thead>
+            <tbody id="subs"></tbody>
+          </table>
+        </section>
+
+        <section id="aba-placar" class="arena-aba hidden">
+          <p class="arena-situacao">Placar real, sem freeze. Não projete esta tela no telão.</p>
+          <table class="arena-tabela"><thead id="placar-cabecalho"></thead><tbody id="placar-linhas"></tbody></table>
         </section>
 
         <section id="aba-auditoria" class="arena-aba hidden">
@@ -75,9 +110,25 @@
       </section>
     </main>
 
-    <dialog id="dialogo-fonte" class="arena-dialogo">
-      <header><strong id="fonte-titulo"></strong><button id="fechar-fonte" class="arena-link">Fechar</button></header>
-      <pre id="fonte-codigo"></pre>
+    <!-- Versão para impressão dos códigos (só aparece no papel) -->
+    <section id="impressao" class="so-impressao"></section>
+
+    <dialog id="dialogo-sub" class="arena-dialogo">
+      <header><strong id="sub-titulo"></strong><button id="fechar-sub" class="arena-link">Fechar</button></header>
+      <div class="arena-dialogo-corpo">
+        <p id="sub-info" class="arena-aviso"></p>
+        <div id="sub-ajuste" class="arena-ajuste hidden">
+          <p id="sub-ajuste-atual"></p>
+          <form id="form-ajuste" class="arena-form-linha sem-margem">
+            <input name="pontos" class="arena-input sem-caixa pequeno curto" type="number" min="0" step="1" placeholder="Pontos" required />
+            <input name="motivo" class="arena-input sem-caixa pequeno" placeholder="Motivo (mín. 5 caracteres)" required minlength="5" maxlength="300" />
+            <button class="arena-primario" type="submit">Ajustar</button>
+            <button id="desfazer-ajuste" class="arena-secundario hidden" type="button">Desfazer ajuste</button>
+          </form>
+          <p id="erro-ajuste" class="arena-erro" role="alert"></p>
+        </div>
+      </div>
+      <pre id="sub-codigo"></pre>
     </dialog>
 
     <script type="module" src="/src/arena/admin.js"></script>

@@ -108,8 +108,6 @@ a.arena-card:hover { transform: translateY(-2px); border-color: var(--a-accent);
 .arena-tabela.pequena { font-size: 14px; }
 .arena-tabela.pequena td { padding: 6px 12px; }
 .arena-tabela tr.ok td { color: var(--a-ok); }
-.arena-admin { padding: 0 0 48px; }
-.arena-admin h2 { margin: 24px 24px 0; }
 
 /* Painel da banca (admin.html) */
 a.arena-primario { text-decoration: none; }
@@ -139,8 +137,24 @@ a.arena-primario { text-decoration: none; }
   display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--a-border);
 }
 .arena-dialogo pre { margin: 0; padding: 16px; overflow: auto; max-height: 70vh; font-size: 14px; line-height: 1.45; }
+.arena-form-linha.sem-margem { margin-top: 0; }
+.arena-form-linha .arena-input.curto { flex: 0 1 130px; min-width: 110px; }
+.arena-tabela td.ajustado { color: var(--a-gold); font-weight: 800; }
+.arena-tabela code { font-size: 14px; letter-spacing: .04em; }
+.arena-dialogo-corpo { padding: 12px 16px 0; }
+.arena-ajuste { padding: 12px; border: 1px solid var(--a-border); border-radius: 8px; margin-bottom: 12px; }
+.arena-ajuste p { margin: 0 0 8px; }
+.so-impressao { display: none; }
 @media (max-width: 600px) {
   .arena-aba { overflow-x: auto; }
+}
+@media print {
+  body.arena-pagina { background: #fff; color: #000; }
+  body.arena-pagina > *:not(.so-impressao) { display: none !important; }
+  .so-impressao { display: grid !important; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .so-impressao article { border: 1px dashed #666; padding: 12px 16px; break-inside: avoid; }
+  .so-impressao h2 { margin: 0 0 6px; font-size: 18px; }
+  .so-impressao .codigo { font: 700 26px ui-monospace, monospace; letter-spacing: .08em; margin: 0 0 6px; }
 }
 
 /* Extras na IDE */

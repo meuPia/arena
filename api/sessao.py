@@ -4,7 +4,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _lib import auth  # noqa: E402
+from _lib import admin, auth, store  # noqa: E402
 from _lib.web import Base, Erro, Resposta, cookie  # noqa: E402
 
 
@@ -21,4 +21,8 @@ class handler(Base):
     def post(self):
         if self.corpo.get("acao") != "sair":
             raise Erro(400, "Ação desconhecida.")
+        try:
+            admin.auditar(store.abrir(), self.banca(), "logout")
+        except Erro:
+            pass  # sem sessão: só apaga o cookie
         return Resposta({"ok": True}, cookies=[cookie(auth.COOKIE_SESSAO, "", 0, self.seguro())])

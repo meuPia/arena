@@ -20,19 +20,23 @@ def _segredo():
     return (s or _SEGREDO_DEV).encode()
 
 
-def emitir_token(equipe_id):
-    corpo = base64.urlsafe_b64encode(equipe_id.encode()).decode().rstrip("=")
+def emitir_token(equipe_id, versao=0):
+    """Token da equipe: assina `id:versao`. Regenerar o código (versao += 1) derruba os tokens antigos."""
+    corpo = base64.urlsafe_b64encode(f"{equipe_id}:{int(versao)}".encode()).decode().rstrip("=")
     assinatura = hmac.new(_segredo(), corpo.encode(), hashlib.sha256).hexdigest()[:32]
     return f"{corpo}.{assinatura}"
 
 
 def ler_token(token):
+    """(id, versao) do token, ou None. O formato antigo (só o id) vale como versão 0."""
     try:
         corpo, assinatura = token.split(".", 1)
         esperado = hmac.new(_segredo(), corpo.encode(), hashlib.sha256).hexdigest()[:32]
         if not hmac.compare_digest(assinatura, esperado):
             return None
-        return base64.urlsafe_b64decode(corpo + "=" * (-len(corpo) % 4)).decode()
+        texto = base64.urlsafe_b64decode(corpo + "=" * (-len(corpo) % 4)).decode()
+        eid, sep, versao = texto.rpartition(":")
+        return (eid, int(versao)) if sep and versao.isdigit() else (texto, 0)
     except Exception:  # noqa: BLE001
         return None
 
@@ -154,12 +158,15 @@ class Base(BaseHTTPRequestHandler):
     def do_POST(self):
         self._rodar("post")
 
-    def equipe_id(self):
+    def equipe_id(self, db=None):
+        """Id da equipe do token, conferindo que ela existe e que o código não foi regenerado."""
+        from . import arena  # evita import circular
         auth = self.headers.get("Authorization", "")
-        eid = ler_token(auth[7:]) if auth.startswith("Bearer ") else None
-        if not eid:
+        lido = ler_token(auth[7:]) if auth.startswith("Bearer ") else None
+        e = arena.equipes(db).get(lido[0]) if lido else None
+        if not e or int(e.get("versao", 0)) != lido[1]:
             raise Erro(401, "Sessão inválida. Entre novamente com o código da equipe.")
-        return eid
+        return lido[0]
 
     def host(self):
         return self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or ""

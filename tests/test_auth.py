@@ -144,6 +144,75 @@ def test_google_recusa_token_invalido(db, monkeypatch, campo, valor, motivo):
     assert e.value.motivo == motivo
 
 
+# ---------------- Microsoft ----------------
+
+TID = "11111111-2222-3333-4444-555555555555"
+
+
+def ms_token(**kw):
+    t = {"aud": "cid-ms", "iss": f"https://login.microsoftonline.com/{TID}/v2.0", "tid": TID,
+         "exp": time.time() + 300, "preferred_username": "Prof@Exemplo.edu", "name": "Prof",
+         "email": "editavel@qualquer.com"}
+    t.update(kw)
+    return t
+
+
+@pytest.fixture
+def ms(db, monkeypatch):
+    monkeypatch.setenv("OAUTH_MICROSOFT_ID", "cid-ms")
+    monkeypatch.setenv("OAUTH_MICROSOFT_SECRET", "seg-ms")
+    monkeypatch.delenv("OAUTH_MICROSOFT_TENANT", raising=False)
+    return db
+
+
+def ms_url():
+    return auth._url("microsoft", "token")
+
+
+def test_microsoft_configurado_aparece_e_usa_tenant(ms, monkeypatch):
+    assert [p["id"] for p in auth.provedores_configurados()] == ["google", "microsoft", "github"]
+    url, _, _ = iniciar("microsoft")
+    assert url.startswith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?")
+    monkeypatch.setenv("OAUTH_MICROSOFT_TENANT", TID)
+    assert iniciar("microsoft")[0].startswith(f"https://login.microsoftonline.com/{TID}/")
+
+
+def test_microsoft_usa_preferred_username_e_nao_o_email(ms, monkeypatch):
+    simular(monkeypatch, {ms_url(): {"id_token": jwt(ms_token())}})
+    _, state, nonce = iniciar("microsoft")
+    ident = auth.concluir("code", state, nonce, BASE)
+    assert ident["ids"] == ["microsoft:prof@exemplo.edu", "email:prof@exemplo.edu"] and ident["provedor"] == "microsoft"
+
+
+@pytest.mark.parametrize("kw,motivo", [
+    ({"aud": "outro"}, "provedor_falhou"),
+    ({"iss": "https://login.microsoftonline.com/outro/v2.0"}, "provedor_falhou"),  # iss não bate com o tid
+    ({"exp": 0}, "provedor_falhou"),
+    ({"preferred_username": ""}, "identidade_nao_verificada"),
+])
+def test_microsoft_recusa_token_invalido(ms, monkeypatch, kw, motivo):
+    simular(monkeypatch, {ms_url(): {"id_token": jwt(ms_token(**kw))}})
+    _, state, nonce = iniciar("microsoft")
+    with pytest.raises(auth.ErroAuth) as e:
+        auth.concluir("code", state, nonce, BASE)
+    assert e.value.motivo == motivo
+
+
+def test_microsoft_tenant_fixo_recusa_outro_tenant(ms, monkeypatch):
+    monkeypatch.setenv("OAUTH_MICROSOFT_TENANT", "99999999-0000-0000-0000-000000000000")
+    simular(monkeypatch, {ms_url(): {"id_token": jwt(ms_token())}})
+    _, state, nonce = iniciar("microsoft")
+    with pytest.raises(auth.ErroAuth):
+        auth.concluir("code", state, nonce, BASE)
+
+
+def test_root_pela_microsoft(ms, monkeypatch):
+    monkeypatch.setenv("ARENA_ROOT", json.dumps({"microsoft": "root@exemplo.edu"}))
+    assert auth.papel(["microsoft:root@exemplo.edu", "email:root@exemplo.edu"], ms)["root"]
+    # e-mail verificado igual ao do root, vindo do GitHub com outro login: não é root
+    assert auth.papel(["github:outro", "email:root@exemplo.edu"], ms) is None
+
+
 # ---------------- GitHub ----------------
 
 def test_github_usa_so_emails_verificados(db, monkeypatch):
@@ -246,3 +315,23 @@ def test_juiz_ve_placar_real_e_submissao_com_codigo(db):
 def arena_gabarito(cod):
     from _lib import arena
     return arena._exemplos()[cod]["gabarito"]
+
+
+def test_root_nao_pode_ser_criado_editado_nem_removido(db):
+    root = auth.AUTOR_EMERGENCIA
+    for dados in ({"email": "root@exemplo.com", "nome": "X", "papel": "juiz"},           # e-mail Google do root
+                  {"email": "x@exemplo.com", "nome": "X", "papel": "juiz", "github": "root-exemplo"}):
+        with pytest.raises(Erro) as e:
+            admin.executar("salvar_perfil", root, dados, db)
+        assert e.value.status == 403
+    with pytest.raises(Erro) as e:
+        admin.executar("remover_perfil", root, {"email": "root@exemplo.com"}, db)
+    assert e.value.status == 403
+    assert auth.perfis(db) == {}
+
+
+def test_auditoria_registra_o_provedor(db):
+    autor = {"nome": "Juíza", "papel": "juiz", "provedor": "google"}
+    admin.auditar(db, autor, "login", "google", "juiz")
+    a = admin.executar("auditoria", auth.AUTOR_EMERGENCIA, {}, db)["auditoria"][0]
+    assert (a["autor"], a["papel"], a["provedor"], a["acao"]) == ("Juíza", "juiz", "google", "login")

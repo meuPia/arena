@@ -4,12 +4,15 @@ Fluxo: /api/oauth_inicio gera um `state` assinado (provedor + nonce, 10 min) e g
 cookie `arena_oauth`; o provedor volta em /api/oauth_retorno, que confere state e cookie, troca o
 code por identidades verificadas e, se a pessoa tiver papel, grava o cookie de sessão (12 h).
 
-Identidades (minúsculas): google:<email> + email:<email>; github:<login> + email:<cada verificado>.
+Identidades (minúsculas): google:<email> + email:<email>; microsoft:<upn> + email:<upn>;
+github:<login> + email:<cada verificado>.
 Root: só pela identidade do provedor que está em ARENA_ROOT (um email: igual vindo de outro provedor
 não basta). O papel NÃO vai no cookie: é resolvido a cada requisição (rebaixar vale na hora).
 
-O id_token do Google chega direto do endpoint de token, por TLS e com o client secret: pelo OIDC
-Core §3.1.3.7 a validação TLS substitui a assinatura; conferimos aud, iss e exp.
+Os id_token do Google e da Microsoft chegam direto do endpoint de token, por TLS e com o client
+secret: pelo OIDC Core §3.1.3.7 a validação TLS substitui a assinatura; conferimos aud, iss e exp.
+Na Microsoft vale o preferred_username (UPN, depende de domínio verificado no tenant), nunca o
+`email`, que é editável. O tenant vem de OAUTH_MICROSOFT_TENANT (padrão `common`).
 """
 import base64
 import json
@@ -38,6 +41,13 @@ PROVEDORES = {
         "escopo": "openid email profile",
         "extra": {"prompt": "select_account"},
     },
+    "microsoft": {
+        "nome": "Microsoft",
+        "autorizacao": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize",
+        "token": "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
+        "escopo": "openid email profile",
+        "extra": {"prompt": "select_account"},
+    },
     "github": {
         "nome": "GitHub",
         "autorizacao": "https://github.com/login/oauth/authorize",
@@ -47,6 +57,15 @@ PROVEDORES = {
     },
 }
 EMISSORES_GOOGLE = ("https://accounts.google.com", "accounts.google.com")
+TENANTS_GENERICOS = ("common", "organizations", "consumers")
+
+
+def _tenant():
+    return os.environ.get("OAUTH_MICROSOFT_TENANT", "").strip() or "common"
+
+
+def _url(provedor, tipo):
+    return PROVEDORES[provedor][tipo].replace("{tenant}", _tenant())
 
 
 class ErroAuth(Exception):
@@ -94,7 +113,7 @@ def iniciar(provedor, base_url):
     params = {"client_id": cid, "redirect_uri": url_retorno(base_url), "response_type": "code",
               "scope": d["escopo"], "state": assinar({"p": provedor, "n": nonce}, "oauth", VALIDADE_STATE),
               **d["extra"]}
-    return d["autorizacao"] + "?" + urllib.parse.urlencode(params), nonce
+    return _url(provedor, "autorizacao") + "?" + urllib.parse.urlencode(params), nonce
 
 
 def _payload_jwt(token):
@@ -107,7 +126,7 @@ def _payload_jwt(token):
 
 def _google(code, base_url, agora):
     cid, segredo = _credenciais("google")
-    r = _http("POST", PROVEDORES["google"]["token"], {
+    r = _http("POST", _url("google", "token"), {
         "code": code, "client_id": cid, "client_secret": segredo,
         "redirect_uri": url_retorno(base_url), "grant_type": "authorization_code"})
     if "id_token" not in r:
@@ -121,9 +140,28 @@ def _google(code, base_url, agora):
     return {"ids": [f"google:{email}", f"email:{email}"], "nome": t.get("name") or email}
 
 
+def _microsoft(code, base_url, agora):
+    cid, segredo = _credenciais("microsoft")
+    r = _http("POST", _url("microsoft", "token"), {
+        "code": code, "client_id": cid, "client_secret": segredo, "scope": PROVEDORES["microsoft"]["escopo"],
+        "redirect_uri": url_retorno(base_url), "grant_type": "authorization_code"})
+    if "id_token" not in r:
+        raise ErroAuth("provedor_falhou")
+    t = _payload_jwt(r["id_token"])
+    tid = str(t.get("tid") or "")
+    tenant = _tenant()
+    if (t.get("aud") != cid or not tid or t.get("iss") != f"https://login.microsoftonline.com/{tid}/v2.0"
+            or t.get("exp", 0) < agora or (tenant not in TENANTS_GENERICOS and tid != tenant)):
+        raise ErroAuth("provedor_falhou")
+    upn = (t.get("preferred_username") or "").strip().lower()
+    if not upn:
+        raise ErroAuth("identidade_nao_verificada")
+    return {"ids": [f"microsoft:{upn}", f"email:{upn}"], "nome": t.get("name") or upn}
+
+
 def _github(code, base_url, _agora):
     cid, segredo = _credenciais("github")
-    r = _http("POST", PROVEDORES["github"]["token"], {
+    r = _http("POST", _url("github", "token"), {
         "code": code, "client_id": cid, "client_secret": segredo, "redirect_uri": url_retorno(base_url)})
     tok = r.get("access_token")
     if not tok:
@@ -138,7 +176,7 @@ def _github(code, base_url, _agora):
     return {"ids": [f"github:{login}"] + [f"email:{e}" for e in verificados], "nome": usuario.get("name") or login}
 
 
-_TROCAR = {"google": _google, "github": _github}
+_TROCAR = {"google": _google, "microsoft": _microsoft, "github": _github}
 
 
 def concluir(code, state, nonce_cookie, base_url, agora=None):

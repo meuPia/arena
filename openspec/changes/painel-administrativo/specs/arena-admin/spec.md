@@ -38,7 +38,7 @@ A listagem de equipes SHALL mostrar, para cada equipe, nome, código de acesso, 
 - **THEN** a linha da Equipe 1 mostra 15 pts, 4 submissões e o horário da última
 
 ### Requirement: Códigos de acesso das equipes
-Toda equipe nova SHALL receber um código no formato `PALAVRA-XXXX`, em que `XXXX` são 4 caracteres aleatórios de um alfabeto sem caracteres ambíguos (sem `0`, `O`, `1` e `I`). O código é gerado com um gerador criptograficamente seguro e MUST ser único entre as equipes. O admin SHALL poder regenerar o código de uma equipe, o que invalida o anterior e as sessões abertas com ele. O código MUST aparecer só para admins.
+Toda equipe nova SHALL receber um código no formato `PALAVRA-XXXXXX`, em que `XXXXXX` são 6 caracteres aleatórios de um alfabeto sem caracteres ambíguos (sem `0`, `O`, `1` e `I`). O código é gerado com um gerador criptograficamente seguro e MUST ser único entre as equipes. O admin SHALL poder regenerar o código de uma equipe, o que invalida o anterior e as sessões abertas com ele. O código MUST aparecer só para admins.
 
 #### Scenario: Regenerar código
 - **WHEN** o admin regenera o código da Equipe 1
