@@ -71,10 +71,12 @@ No `admin.js`, a aba Desafios tem uma tabela e um editor num `<dialog>` grande, 
 ### D7. Varredura de vazamento e repositório público novo
 `scripts/varrer_vazamento.py --referencia <pasta ou export.json>` monta um conjunto com as linhas de `testesExtras` e as linhas não triviais (com 20 caracteres ou mais, sem contar espaços) de cada gabarito real. Depois percorre os arquivos que o git versiona (`git ls-files`) e falha se encontrar algum trecho. O script fica no repositório privado e varre o público com `--raiz ../arena`.
 
-**Publicação:** o histórico atual não pode ir a público, e o GitHub mantém as refs do PR #1 mesmo depois de um force-push. Por isso:
-1. renomear `meuPia/challenge` para `meuPia/challenge-privado` (continua privado e vira arquivo, com o gerador);
-2. no clone limpo, `git checkout --orphan publico`, um único commit "meuPiá Challenge — código aberto", e push para um `meuPia/challenge` **novo e público**;
-3. conectar a Vercel Hobby ao repositório público.
+**Publicação:** o histórico atual não pode ir a público, e o GitHub mantém as refs do PR #1 mesmo depois de um force-push. Por isso o código aberto vai para um repositório **novo**, com histórico próprio, e o atual continua privado:
+1. `meuPia/challenge` continua **privado**, com o nome atual: guarda o histórico, o gerador de testes extras e os scripts de carga, backup e varredura;
+2. o repositório público é o **`meuPia/arena`**, criado do zero (o primeiro commit é "Initial commit") e sem nenhum commit do `challenge`. Não houve renomeação nem commit órfão;
+3. a Vercel Hobby está ligada ao `meuPia/arena` (meupia-arena.vercel.app).
+
+Verificação: `git log --all` do `meuPia/arena` não tem nenhum commit que toque `arena/desafios`, `arena/gabaritos` ou `arena/extras_base`, nem os commits do `challenge` (por exemplo, o do PR #1). A varredura `varrer_vazamento.py --referencia arena/desafios --raiz ../arena`, rodada a partir do privado, não acha nenhum trecho.
 
 As operações no GitHub são feitas pelo dono, com confirmação, porque mudam um repositório público.
 
@@ -104,5 +106,5 @@ Os passos 1 a 3 já permitem publicar o repositório aberto e fazer o deploy, ed
 2. Criar as tabelas com `supabase/arena.sql` (só estrutura, sem dados). No repositório **privado** `challenge`, rodar `python3 scripts/popular_desafios.py` (lê o `.env.local`, valida, pede confirmação, grava e exporta o backup). O repositório público não tem nenhuma migration que popule desafios.
 3. O `popular_desafios.py` exporta o backup fora do repositório.
 4. Montar o repositório público sem `arena/desafios`, `arena/gabaritos`, `arena/extras_base`, `scripts/gerar_testes_extras.py`, `scripts/importar_desafios.py` e `scripts/varrer_vazamento.py`, e varrê-lo a partir do privado (`varrer_vazamento.py --referencia arena/desafios --raiz ../arena`).
-5. Publicar (D7) e fazer o deploy na Vercel Hobby com `SUPABASE_*`.
+5. Publicar no `meuPia/arena` (D7) e fazer o deploy na Vercel Hobby com `SUPABASE_*`.
 6. **Rollback:** o repositório privado arquivado continua com os desafios em arquivo e o deploy antigo. É só voltar a apontar a Vercel para ele (o que exige plano Pro ou repositório pessoal).
