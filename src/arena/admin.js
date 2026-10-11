@@ -2,7 +2,7 @@
 // admin: Equipes, Participantes, Perfis, Submissões, Placar real e Auditoria · juiz: Submissões e Placar real.
 // Tudo que vem do banco entra com escapar() ou textContent.
 import { marked } from "marked";
-import { escapar } from "./api.js";
+import { escapar, textoRelogio } from "./api.js";
 import { CABECALHO_PLACAR, linhasPlacar } from "./placar-tabela.js";
 
 const $ = (id) => document.getElementById(id);
@@ -26,6 +26,7 @@ const ABAS = [
   { id: "desafios", rotulo: "Desafios", papel: "admin", carregar: carregarDesafios },
   { id: "submissoes", rotulo: "Submissões", papel: "juiz", carregar: carregarSubmissoes },
   { id: "placar", rotulo: "Placar real", papel: "juiz", carregar: carregarPlacar },
+  { id: "evento", rotulo: "Evento", papel: "juiz", carregar: carregarEvento },
   { id: "auditoria", rotulo: "Auditoria", papel: "admin", carregar: carregarAuditoria },
 ];
 const NIVEL = { juiz: 1, admin: 2 };
@@ -391,7 +392,7 @@ $("validar-todos").addEventListener("click", () => tentar(async () => {
 }));
 
 $("exportar-desafios").addEventListener("click", () => tentar(async () => {
-  const dados = await admin("exportar_desafios");
+  const dados = await adminPost("exportar_desafios");
   const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
   const a = Object.assign(document.createElement("a"), {
     href: URL.createObjectURL(blob), download: `desafios-${new Date().toISOString().slice(0, 10)}.json`,
@@ -527,6 +528,58 @@ async function carregarAuditoria() {
       <td>${escapar(a.autor)}${a.papel ? ` <span class="num">(${escapar(a.papel)}${a.provedor ? ` · ${escapar(a.provedor)}` : ""})</span>` : ""}</td>
       <td>${escapar(a.acao)}</td><td>${escapar(a.alvo)}</td><td>${escapar(a.resumo)}</td></tr>`).join("");
 }
+
+// ---------------- horário do evento ----------------
+
+// ISO com fuso do evento ("2026-10-21T19:10:00-03:00") → "21/10/2026 19:10", no próprio fuso do evento.
+const dataEvento = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)} ${iso.slice(11, 16)}`;
+let eventoAtual = null;
+let relogioEvento = null;
+
+async function carregarEvento() {
+  const ev = eventoAtual = await admin("evento");
+  $("evento-origem").textContent = ev.origem === "banco"
+    ? `Início definido no painel (o arquivo diz ${dataEvento(ev.inicioArquivo)}).`
+    : "Horário do arquivo arena/config.json.";
+  $("evento-inicio").textContent = dataEvento(ev.inicio);
+  $("evento-fim").textContent = dataEvento(ev.fim);
+  $("evento-duracao").textContent = `${ev.duracaoMinutos} min`;
+  $("evento-freeze").textContent = `${ev.freezeMinutos} min antes do fim`;
+  $("form-evento").classList.toggle("hidden", NIVEL[usuario.papel] < NIVEL.admin);
+  $("evento-voltar-arquivo").disabled = ev.origem !== "banco";
+  $("evento-novo-inicio").value = ev.inicio.slice(0, 16);
+  const deslocamento = ev.janela.agora - Date.now() / 1000;
+  const tique = () => {
+    const { valor, rotulo } = textoRelogio(ev.janela, Date.now() / 1000 + deslocamento);
+    $("evento-relogio").textContent = valor;
+    $("evento-relogio-rotulo").textContent = rotulo;
+  };
+  clearInterval(relogioEvento);
+  tique();
+  relogioEvento = setInterval(tique, 1000);
+}
+
+function confirmarMudancaDeHorario() {
+  return !eventoAtual?.temSubmissoes
+    || confirm("Esta rodada já tem submissões. Mudar o horário agora afeta abertura, freeze e encerramento. Continuar?");
+}
+
+$("form-evento").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  if (!confirmarMudancaDeHorario()) return;
+  tentar(async () => {
+    await adminPost("salvar_evento", { inicio: $("evento-novo-inicio").value });
+    await carregarEvento();
+  });
+});
+
+$("evento-voltar-arquivo").addEventListener("click", () => {
+  if (!confirmarMudancaDeHorario()) return;
+  tentar(async () => {
+    await adminPost("salvar_evento", { inicio: null, voltarAoArquivo: true });
+    await carregarEvento();
+  });
+});
 
 // ---------------- início ----------------
 

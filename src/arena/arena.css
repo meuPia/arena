@@ -458,3 +458,20 @@ body.arena-ide .modal-subtitle { color: var(--a-muted); }
 .arena-tabela th.pts, .arena-telao .arena-tabela th.pts { font-family: var(--a-font-mono); font-size: 14px; font-weight: 600; text-align: right; }
 .arena-telao .arena-tabela th.num { font-size: 14px; }
 .arena-tabela code { white-space: nowrap; }
+.arena-missao-relogio {
+  display: inline-flex; align-items: baseline; gap: 8px; margin-left: auto; padding: 6px 12px; --a-chanfro: 6px;
+  background: var(--a-forte-bg); border: 1px solid var(--a-forte-borda);
+  font-family: var(--a-font-mono); font-weight: 600; font-size: 16px; color: var(--a-forte-text);
+}
+.arena-missao-relogio small { font-size: 11px; font-weight: 400; letter-spacing: .1em; text-transform: uppercase; color: var(--a-muted); }
+[data-theme="light"] .arena-missao-relogio small { color: #A9B4C4; }
+
+/* Admin: seção Evento */
+.arena-evento { display: grid; gap: 16px; max-width: 760px; margin-top: 16px; }
+.arena-evento-dados { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.arena-evento-dados .arena-kpi span { font-size: 18px; }
+.arena-evento-origem { font-family: var(--a-font-mono); font-size: 13px; color: var(--a-muted); }
+/* Admin: login da banca em uma coluna */
+.arena-login-banca { display: grid; gap: 14px; max-width: 520px; min-height: 0; margin: 6vh auto 0; align-items: start; }
+.arena-login-banca h1 { margin: 0; }
+.arena-login-banca .arena-form { max-width: none; padding: 24px; }

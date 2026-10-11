@@ -1,4 +1,4 @@
-import { api, sessao, salvarSessao, sair, escapar, formatarRelogio } from "./api.js";
+import { api, sessao, salvarSessao, sair, escapar, textoRelogio } from "./api.js";
 
 const $ = (id) => document.getElementById(id);
 const SUBTITULO = {
@@ -82,12 +82,7 @@ function renderProgresso(niveis) {
 
 function atualizarRelogio() {
   if (!janela) return;
-  const agora = Date.now() / 1000 + deslocamentoRelogio;
-  let rotulo = "restante", valor;
-  if (janela.ensaio) { rotulo = "modo ensaio"; valor = "∞"; }
-  else if (agora < janela.inicio) { rotulo = "para abrir"; valor = formatarRelogio(janela.inicio - agora); }
-  else if (agora <= janela.fim) { valor = formatarRelogio(janela.fim - agora); }
-  else { rotulo = "encerrado"; valor = "00:00"; }
+  const { valor, rotulo } = textoRelogio(janela, Date.now() / 1000 + deslocamentoRelogio);
   $("kpi-relogio").textContent = valor;
   $("kpi-relogio-rotulo").textContent = rotulo;
 }

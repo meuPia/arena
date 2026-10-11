@@ -21,7 +21,7 @@
     </header>
 
     <main class="arena-main">
-      <section id="tela-login" class="arena-login hidden">
+      <section id="tela-login" class="arena-login arena-login-banca hidden">
         <p class="arena-sobretitulo">Painel da banca</p>
         <h1>Entrar</h1>
         <p class="arena-lead">Acesso restrito à organização e aos juízes cadastrados.</p>
@@ -118,6 +118,27 @@
         <section id="aba-placar" class="arena-aba hidden">
           <p class="arena-situacao">Placar real, sem freeze. Não projete esta tela no telão.</p>
           <table class="arena-tabela"><thead id="placar-cabecalho"></thead><tbody id="placar-linhas"></tbody></table>
+        </section>
+
+        <section id="aba-evento" class="arena-aba hidden">
+          <div class="arena-evento">
+            <p id="evento-origem" class="arena-evento-origem"></p>
+            <div class="arena-evento-dados">
+              <div class="arena-kpi"><small>Início</small><span id="evento-inicio">–</span></div>
+              <div class="arena-kpi"><small>Fim</small><span id="evento-fim">–</span></div>
+              <div class="arena-kpi"><small>Duração</small><span id="evento-duracao">–</span></div>
+              <div class="arena-kpi"><small>Placar congela</small><span id="evento-freeze">–</span></div>
+              <div class="arena-kpi forte"><small id="evento-relogio-rotulo">situação</small><span id="evento-relogio">–</span></div>
+            </div>
+            <form id="form-evento" class="arena-form-linha sem-margem hidden">
+              <label class="arena-rotulo" for="evento-novo-inicio">Novo início (fuso do evento)
+                <input id="evento-novo-inicio" name="inicio" class="arena-input sem-caixa pequeno" type="datetime-local" required />
+              </label>
+              <button class="arena-primario" type="submit">Salvar início</button>
+              <button id="evento-voltar-arquivo" class="arena-secundario" type="button">Voltar ao horário do arquivo</button>
+            </form>
+            <p class="arena-aviso">O fim acompanha o início (a duração vem de <code>arena/config.json</code>). Vale para esta rodada (<code>ARENA_PREFIXO</code>) e chega às equipes na próxima atualização (até 30 s). Juízes só veem o horário.</p>
+          </div>
         </section>
 
         <section id="aba-auditoria" class="arena-aba hidden">

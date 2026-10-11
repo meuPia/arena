@@ -61,7 +61,7 @@ def login(codigo, ip="", db=None, agora=None):
 def missoes(eid, db=None):
     db = db or store.abrir()
     e = _equipe(eid, db)
-    cfg, todos = arena.config(), arena.desafios(db)
+    cfg, todos = arena.config(db), arena.desafios(db)
     jan = arena.janela(cfg)
     aceitas, tentativas, ultima = _estado(db, eid)
     melhores = arena.melhores(aceitas)
@@ -92,7 +92,7 @@ def missoes(eid, db=None):
 def missao(eid, codigo, db=None):
     db = db or store.abrir()
     e = _equipe(eid, db)
-    cfg, todos = arena.config(), arena.desafios(db)
+    cfg, todos = arena.config(db), arena.desafios(db)
     d = todos.get(codigo)
     if not d:
         raise Erro(404, "Missão não encontrada.")
@@ -112,6 +112,7 @@ def missao(eid, codigo, db=None):
         "espera": arena.cooldown_restante(tentativas.get(codigo, 0), ultima.get(codigo), cfg),
         "integrantes": e.get("integrantes", []),
         "situacao": jan["situacao"],
+        "janela": jan,
     })
     return out
 
@@ -120,7 +121,7 @@ def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
     db = db or store.abrir()
     agora = agora if agora is not None else time.time()
     e = _equipe(eid, db)
-    cfg, todos = arena.config(), arena.desafios(db)
+    cfg, todos = arena.config(db), arena.desafios(db)
     d = todos.get(codigo)
     if not d:
         raise Erro(404, "Missão não encontrada.")
@@ -177,7 +178,7 @@ def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
 
 def placar(admin=False, db=None, agora=None):
     db = db or store.abrir()
-    cfg, todos = arena.config(), arena.desafios(db)
+    cfg, todos = arena.config(db), arena.desafios(db)
     jan = arena.janela(cfg, agora)
     congelado = (not admin and not arena.modo_ensaio() and jan["agora"] >= jan["freeze"]
                  and not _revelado())

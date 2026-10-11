@@ -276,5 +276,9 @@ def k_auditoria():
     return f"{_conteudo()}:auditoria"      # lista JSON {t, autor, acao, alvo, resumo} (mais recente primeiro)
 
 
+def k_evento():
+    return f"{_p()}:evento"                # hash {inicio: ISO com fuso} definido pelo painel (por rodada)
+
+
 def k_log():
     return f"{_p()}:submissoes"            # lista JSON (mais recente primeiro)

@@ -425,3 +425,38 @@ def test_token_antigo_vale_com_equipes_do_arquivo(db):
     from handlers import chamar
     tok = emitir_token("equipe1")
     assert chamar("missoes", cabecalhos={"Authorization": f"Bearer {tok}"})[0] == 200
+
+
+# ---------------- horário do evento (painel) ----------------
+
+def test_horario_do_arquivo_sem_inicio_salvo(db):
+    cfg = arena.config(db)
+    assert cfg["origemHorario"] == "arquivo" and cfg["inicio"] == arena.config()["inicio"]
+
+
+def test_inicio_salvo_desloca_fim_e_freeze(db):
+    db.hset(store.k_evento(), "inicio", "2026-10-21T19:30-03:00")
+    cfg = arena.config(db)
+    assert cfg["origemHorario"] == "banco"
+    assert cfg["inicio"].startswith("2026-10-21T19:30") and cfg["fim"].startswith("2026-10-21T22:10")
+    jan = arena.janela(cfg)
+    assert jan["fim"] - jan["freeze"] == 20 * 60
+    assert jan["fim"] - jan["inicio"] == 160 * 60
+
+
+def test_inicio_salvo_e_da_rodada(db, monkeypatch):
+    db.hset(store.k_evento(), "inicio", "2026-10-21T19:30-03:00")
+    monkeypatch.setenv("ARENA_PREFIXO", "outra-rodada")
+    assert arena.config(db)["origemHorario"] == "arquivo"
+
+
+def test_missoes_abrem_no_inicio_salvo_e_missao_traz_janela(db, monkeypatch):
+    monkeypatch.delenv("ARENA_MODO")
+    db.hset(store.k_evento(), "inicio", "2000-01-01T00:00+00:00")  # já começou e já terminou
+    assert servico.missoes("equipe1", db=db)["janela"]["situacao"] == "encerrada"
+    db.hset(store.k_evento(), "inicio", "2099-01-01T00:00+00:00")
+    assert servico.missoes("equipe1", db=db)["janela"]["situacao"] == "antes"
+    monkeypatch.setenv("ARENA_MODO", "ensaio")
+    m = servico.missao("equipe1", "B91", db=db)
+    assert {"inicio", "fim", "freeze", "agora", "situacao", "ensaio"} <= set(m["janela"])
+    assert m["janela"]["inicio"] == arena.janela(arena.config(db))["inicio"]

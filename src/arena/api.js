@@ -78,6 +78,15 @@ export function formatarRelogio(segundos) {
   return h > 0 ? `${h}:${dd(m)}:${dd(s)}` : `${dd(m)}:${dd(s)}`;
 }
 
+// Relógio do evento a partir da janela do servidor ({inicio, fim, ensaio} em segundos) e do "agora" do servidor.
+export function textoRelogio(janela, agora) {
+  if (!janela) return { valor: "--:--", rotulo: "" };
+  if (janela.ensaio) return { valor: "∞", rotulo: "modo ensaio" };
+  if (agora < janela.inicio) return { valor: formatarRelogio(janela.inicio - agora), rotulo: "para abrir" };
+  if (agora <= janela.fim) return { valor: formatarRelogio(janela.fim - agora), rotulo: "restante" };
+  return { valor: "00:00", rotulo: "encerrado" };
+}
+
 export function escapar(texto) {
   return String(texto ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);

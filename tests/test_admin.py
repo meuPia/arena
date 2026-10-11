@@ -241,6 +241,40 @@ def test_placar_publico_segue_o_freeze_mesmo_com_banca_logada(db, monkeypatch):
     assert chamar("admin", caminho="/api/admin?acao=placar")[0] == 401
 
 
+# ---------------- GET só lê (CSRF) ----------------
+
+def test_get_aceita_so_acoes_de_leitura(db):
+    escrita = set(admin.PERMISSOES) - admin.LEITURA
+    assert admin.LEITURA <= set(admin.PERMISSOES)
+    assert {"salvar_evento", "salvar_perfil", "excluir_equipe", "ajustar", "exportar_desafios"} <= escrita
+    for acao in escrita:
+        with pytest.raises(Erro) as e:
+            admin.executar(acao, ROOT, {}, db, metodo="GET")
+        assert e.value.status == 405, acao
+    assert ex("auditoria", db=db)["auditoria"] == []
+
+
+def test_get_com_acao_de_escrita_e_recusado_sem_gravar(db, monkeypatch):
+    from handlers import chamar
+    monkeypatch.setenv("ADMIN_TOKEN", "tok-emergencia")
+    cab = {"X-Admin-Token": "tok-emergencia"}
+    inicio = arena.config(db)["inicio"]
+    for caminho in ("/api/admin?acao=salvar_evento&inicio=2030-01-01T10:00",
+                    "/api/admin?acao=salvar_perfil&email=x@exemplo.com&nome=X&papel=admin",
+                    "/api/admin?acao=criar_equipe&nome=Intrusa"):
+        st, _, r = chamar("admin", caminho=caminho, cabecalhos=cab)
+        assert st == 405 and "POST" in r["erro"], caminho
+    assert arena.config(db)["inicio"] == inicio
+    assert "x@exemplo.com" not in auth.perfis(db)
+    assert all(e["nome"] != "Intrusa" for e in ex("equipes", db=db)["equipes"])
+    assert ex("auditoria", db=db)["auditoria"] == []
+    st, _, r = chamar("admin", caminho="/api/admin?acao=evento", cabecalhos=cab)
+    assert st == 200 and r["inicio"] == inicio
+    st, _, r = chamar("admin", metodo="POST", cabecalhos=cab, corpo={"acao": "salvar_evento", "inicio": "2030-01-01T10:00"})
+    assert st == 200 and r["inicio"].startswith("2030-01-01T10:00")
+    assert acoes(db) == ["horário do evento"]
+
+
 # ---------------- produção nunca usa /tmp nem as equipes de exemplo ----------------
 
 def test_producao_sem_banco_falha_alto(monkeypatch):
@@ -358,3 +392,39 @@ def test_validar_todos(db):
     ex("importar_desafios", {"arquivo": conteudo_export(), "confirmar": True}, db)
     r = ex("validar_todos", db=db)
     assert r["ok"] and len(r["validacoes"]) == 7
+
+
+# ---------------- horário do evento ----------------
+
+def test_evento_mostra_horario_do_arquivo(db):
+    r = ex("evento", db=db, autor=JUIZ)
+    assert r["origem"] == "arquivo" and r["duracaoMinutos"] == 160 and r["freezeMinutos"] == 20
+
+
+def test_salvar_inicio_no_fuso_do_evento_e_auditar(db):
+    r = ex("salvar_evento", {"inicio": "2026-10-21T19:30"}, db=db)
+    assert r["inicio"] == "2026-10-21T19:30-03:00"
+    ev = ex("evento", db=db)
+    assert ev["origem"] == "banco" and ev["fim"].startswith("2026-10-21T22:10")
+    a = ex("auditoria", db=db)["auditoria"][0]
+    assert a["acao"] == "horário do evento" and "19:10" in a["resumo"] and "19:30" in a["resumo"]
+
+
+def test_voltar_ao_horario_do_arquivo(db):
+    ex("salvar_evento", {"inicio": "2026-10-21T19:30"}, db=db)
+    r = ex("salvar_evento", {"inicio": None, "voltarAoArquivo": True}, db=db)
+    assert r["origem"] == "arquivo" and ex("evento", db=db)["inicio"] == arena.config()["inicio"]
+
+
+def test_juiz_nao_altera_horario(db):
+    with pytest.raises(Erro) as e:
+        ex("salvar_evento", {"inicio": "2026-10-21T19:30"}, db=db, autor=JUIZ)
+    assert e.value.status == 403
+
+
+@pytest.mark.parametrize("valor", ["", "amanhã às 7", "2026-13-40T99:99"])
+def test_data_invalida_recusada(db, valor):
+    with pytest.raises(Erro) as e:
+        ex("salvar_evento", {"inicio": valor}, db=db)
+    assert e.value.status == 400
+    assert ex("evento", db=db)["origem"] == "arquivo"

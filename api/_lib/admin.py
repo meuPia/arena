@@ -1,12 +1,13 @@
 """Casos de uso do painel da banca (sem HTTP): placar real, submissões, perfis e auditoria.
 
-Toda ação passa por `executar`, que confere a permissão (tabela PERMISSOES) antes de qualquer
-leitura ou gravação. Ações que alteram dados vão para a auditoria, sem código-fonte.
+Toda ação passa por `executar`, que confere o método (só as ações de LEITURA aceitam GET) e a
+permissão (tabela PERMISSOES) antes de qualquer leitura ou gravação. Ações que alteram dados vão para a auditoria, sem código-fonte.
 """
 import json
 import re
 import secrets
 import time
+from datetime import datetime
 
 from . import arena, auth, conteudo, servico, store, validacao
 from .web import Erro
@@ -24,7 +25,13 @@ PERMISSOES = {
     # desafios: só admin (juízes nunca recebem testes extras nem gabaritos)
     "desafios": "admin", "desafio": "admin", "salvar_desafio": "admin", "validar_desafio": "admin",
     "validar_todos": "admin", "exportar_desafios": "admin", "importar_desafios": "admin",
+    # horário do evento: juiz vê, admin altera
+    "evento": "juiz", "salvar_evento": "admin",
 }
+# Únicas ações aceitas por GET: não gravam nada (nem auditoria). O resto é só POST, que exige JSON e mesma
+# origem (web.Base); assim um link malicioso aberto por alguém da banca logada não altera dados (CSRF).
+LEITURA = frozenset({"placar", "submissoes", "submissao", "perfis", "auditoria", "equipes", "participantes",
+                     "desafios", "desafio", "evento"})
 _NIVEL = {"juiz": 1, "admin": 2}
 _RE_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _RE_GITHUB = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,37}[a-z0-9])?$")
@@ -42,14 +49,16 @@ def _eh_root(email="", github=""):
     return any(f"{p}:{email}" in r for p in ("google", "microsoft") if email) or bool(github and f"github:{github}" in r)
 
 
-def executar(acao, autor, dados=None, db=None):
-    db = db or store.abrir()
-    dados = dados or {}
+def executar(acao, autor, dados=None, db=None, metodo="POST"):
     exigido = PERMISSOES.get(acao)
     if exigido is None:
         raise Erro(400, "Ação desconhecida.")
+    if metodo.upper() != "POST" and acao not in LEITURA:
+        raise Erro(405, "Esta ação altera dados: use POST.")
     if _NIVEL.get(autor.get("papel"), 0) < _NIVEL[exigido]:
         raise Erro(403, "Seu perfil não pode fazer isso.")
+    db = db or store.abrir()
+    dados = dados or {}
     return _ACOES[acao](autor, dados, db)
 
 
@@ -459,6 +468,45 @@ def _auditoria(_autor, dados, db):
     return {"auditoria": [json.loads(x) for x in db.lrange(store.k_auditoria(), 0, limite - 1)]}
 
 
+# ---------------- horário do evento ----------------
+
+def _evento(_autor, _dados, db):
+    cfg = arena.config(db)
+    arquivo = arena.config()
+    jan = arena.janela(cfg)
+    return {
+        "inicio": cfg["inicio"], "fim": cfg["fim"], "origem": cfg["origemHorario"],
+        "inicioArquivo": arquivo["inicio"], "fimArquivo": arquivo["fim"],
+        "duracaoMinutos": round((jan["fim"] - jan["inicio"]) / 60), "freezeMinutos": cfg.get("freezeMinutos", 0),
+        "janela": jan, "temSubmissoes": bool(db.lrange(store.k_log(), 0, 0)),
+    }
+
+
+def _salvar_evento(autor, dados, db):
+    """{inicio: "AAAA-MM-DDTHH:MM"} no fuso do evento, ou {inicio: null} para voltar ao arquivo."""
+    antes = arena.config(db)["inicio"]
+    bruto = dados.get("inicio")
+    if bruto in (None, ""):
+        if dados.get("voltarAoArquivo"):
+            db.hdel(store.k_evento(), "inicio")
+            depois = arena.config()["inicio"]
+            auditar(db, autor, "horário do evento", "início", f"{antes} → {depois} (arquivo)")
+            return {"ok": True, "inicio": depois, "origem": "arquivo"}
+        raise Erro(400, "Informe a data e a hora de início.")
+    try:
+        novo = datetime.fromisoformat(str(bruto).strip())
+    except ValueError:
+        raise Erro(400, "Data e hora inválidas. Use o formato AAAA-MM-DDTHH:MM.") from None
+    if novo.tzinfo is None:  # datetime-local do navegador: fuso do evento (o do arquivo)
+        novo = novo.replace(tzinfo=datetime.fromisoformat(arena.config()["inicio"]).tzinfo)
+    if not 2000 <= novo.year <= 2100:
+        raise Erro(400, "Data fora do intervalo aceito.")
+    iso = novo.isoformat(timespec="minutes")
+    db.hset(store.k_evento(), "inicio", iso)
+    auditar(db, autor, "horário do evento", "início", f"{antes} → {iso}")
+    return {"ok": True, "inicio": iso, "origem": "banco"}
+
+
 _ACOES = {
     "placar": _placar, "submissoes": _submissoes, "submissao": _submissao,
     "perfis": _perfis, "auditoria": _auditoria,
@@ -471,4 +519,5 @@ _ACOES = {
     "desafios": _desafios, "desafio": _desafio, "salvar_desafio": _salvar_desafio,
     "validar_desafio": _validar_desafio, "validar_todos": _validar_todos,
     "exportar_desafios": _exportar_desafios, "importar_desafios": _importar_desafios,
+    "evento": _evento, "salvar_evento": _salvar_evento,
 }

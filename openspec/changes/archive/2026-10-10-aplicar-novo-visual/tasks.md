@@ -23,7 +23,7 @@
 - [x] 4.2 Em `src/main.js`, iniciar o `Compartment` e o Xterm com o tema de `temaAtual()` e reagir a `arena:tema`; em `src/ui/toolbar.js`, remover só o handler do `theme-btn` (comentário apontando para `tema.js`); verificar que alternar o tema com código digitado preserva código, desfazer (Ctrl+Z) e saída do terminal
 - [x] 4.3 Aplicar a moldura da IDE em `ide.html`/`arena.css` (cabeçalho com voltar acessível, código e nível da missão, melhor pontuação; enunciado; barra com Rodar secundário e Submeter primário; modais de configurações e de submissão) sem alterar textos do spec `arena-interface`; verificar em `npm run local` uma rodada completa Rodar → Submeter nos dois temas
 - [x] 4.4 Verificar que o tamanho de fonte das configurações continua valendo no editor com os novos temas
-- [ ] 4.5 Cronômetro no cabeçalho da IDE (do protótipo): a resposta de `/api/missoes?codigo=` não traz a janela do evento; exige incluir `janela` em `servico.missao` (mudança de API, a decidir)
+- [x] 4.5 Cronômetro no cabeçalho da IDE (do protótipo): implementado na change `horario-do-evento-no-admin` (a missão passa a trazer a `janela`, e o início do evento pode ser definido no painel)
 
 ## 5. Placar e admin
 

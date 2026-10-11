@@ -1,5 +1,5 @@
 // Botão Submeter da IDE: escolhe participantes, envia ao juiz e mostra o veredito.
-import { api, escapar, formatarRelogio } from "./api.js";
+import { api, escapar, formatarRelogio, textoRelogio } from "./api.js";
 
 const fracao = (b) => `${b.aprovados}/${b.total}`;
 const MOTIVO_EXEMPLO = {
@@ -37,7 +37,21 @@ export function setupSubmissao(view, desafio) {
   if (topo) {
     topo.innerHTML = `<span class="a-selo a-chanfro nivel-${escapar(desafio.nivel)}">${escapar(desafio.codigo)}</span>
       <strong>${escapar(desafio.modulo || "")}</strong><span class="arena-missao-sub">${escapar(desafio.problemaTecnico || "")}</span>
-      <span id="arena-melhor-topo" class="arena-missao-melhor"></span>`;
+      <span id="arena-melhor-topo" class="arena-missao-melhor"></span>
+      <span class="arena-missao-relogio a-chanfro" aria-live="off"><small id="ide-relogio-rotulo"></small><span id="ide-relogio">--:--</span></span>`;
+  }
+
+  // Cronômetro do evento (mesmo cálculo do painel, com o "agora" do servidor)
+  if (desafio.janela) {
+    const deslocamento = desafio.janela.agora - Date.now() / 1000;
+    const tique = () => {
+      const { valor, rotulo } = textoRelogio(desafio.janela, Date.now() / 1000 + deslocamento);
+      const v = document.getElementById("ide-relogio"), r = document.getElementById("ide-relogio-rotulo");
+      if (v) v.textContent = valor;
+      if (r) r.textContent = rotulo;
+    };
+    tique();
+    setInterval(tique, 1000);
   }
 
   // Cabeçalho da missão no painel de instruções

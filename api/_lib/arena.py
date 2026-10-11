@@ -41,8 +41,33 @@ def validar_config(cfg):
     return cfg
 
 
-def config():
-    return validar_config(_ler_json(os.path.join(DIR_ARENA, "config.json")))
+def config(db=None):
+    """Configuração do arquivo. Com `db`, aplica o início do evento salvo pelo painel (fim = início + duração)."""
+    cfg = validar_config(_ler_json(os.path.join(DIR_ARENA, "config.json")))
+    if db is not None:
+        aplicar_inicio(cfg, inicio_salvo(db))
+    return cfg
+
+
+def inicio_salvo(db):
+    """Início do evento definido no painel (ISO com fuso) ou None."""
+    try:
+        return db.hget(store.k_evento(), "inicio") or None
+    except Exception:  # banco fora do ar: segue com o horário do arquivo
+        return None
+
+
+def aplicar_inicio(cfg, inicio):
+    """Troca o início mantendo a duração do arquivo. Marca a origem em cfg['origemHorario']."""
+    cfg["origemHorario"] = "arquivo"
+    if not inicio:
+        return cfg
+    duracao = _ts(cfg["fim"]) - _ts(cfg["inicio"])
+    novo = datetime.fromisoformat(inicio)
+    cfg["inicio"] = novo.isoformat()
+    cfg["fim"] = datetime.fromtimestamp(novo.timestamp() + duracao, tz=novo.tzinfo).isoformat()
+    cfg["origemHorario"] = "banco"
+    return cfg
 
 
 _CACHE = {}
