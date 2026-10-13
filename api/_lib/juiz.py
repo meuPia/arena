@@ -4,6 +4,7 @@ A montagem é a mesma do meuPiá Lab (src/engine/wasm.js): remove
 `fim_algoritmo`, insere `usar "testes"` depois da linha `algoritmo`,
 anexa os testes e fecha com `fim_algoritmo`.
 """
+import importlib.util
 import json
 import os
 import re
@@ -90,6 +91,19 @@ def _limitar_recursos(segundos):
             except Exception:  # noqa: BLE001
                 pass
     return aplicar
+
+
+def _comando_compilacao():
+    """O filho roda com -I (ignora PYTHONPATH e a pasta atual), então só enxerga o site-packages do
+    interpretador. Na Vercel as dependências ficam fora dele (o runtime as põe no sys.path da função):
+    passamos a pasta onde o meuPia foi instalado, achada aqui no processo da função."""
+    spec = importlib.util.find_spec("meuPia")
+    if spec is None or not spec.origin:
+        raise RuntimeError("meupia-core não está instalado (veja requirements.txt)")
+    raiz = os.path.dirname(os.path.dirname(spec.origin))
+    return [sys.executable, "-I", "-c",
+            f"import sys; sys.path.insert(0, {raiz!r}); "
+            "from meuPia.compiler import main; main('main.por', 'output')"]
 
 
 def _ambiente_limpo():
@@ -183,8 +197,7 @@ def julgar(codigo_aluno, exemplos, extras, detalhes=False):
 
         try:
             comp = subprocess.run(
-                [sys.executable, "-I", "-c",
-                 "from meuPia.compiler import main; main('main.por', 'output')"],
+                _comando_compilacao(),
                 cwd=tmp, capture_output=True, text=True, timeout=TEMPO_COMPILACAO, env=_ambiente_limpo(),
             )
             saida_comp = comp.stdout + comp.stderr

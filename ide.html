@@ -83,6 +83,20 @@
       </div>
     </div>
 
+    <div id="veredito-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="veredito-titulo">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="veredito-titulo"><i data-lucide="clipboard-check"></i> Resultado do juiz</h3>
+          <button id="close-veredito-btn" class="icon-btn" title="Fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div id="veredito-texto" class="arena-veredito" aria-live="assertive"></div>
+          <p id="veredito-dica" class="arena-aviso"></p>
+          <button id="ok-veredito-btn" class="arena-primario">Entendi</button>
+        </div>
+      </div>
+    </div>
+
     <div class="ide-container" id="main-split">
       <div id="editor-pane"></div>
       

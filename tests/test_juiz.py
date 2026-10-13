@@ -232,3 +232,24 @@ def test_juiz_apaga_os_testes_antes_de_executar():
 def test_juiz_permite_bibliotecas_do_python():
     r = juiz.julgar(com_operacao('__import__("fractions").Fraction(1, 3)'), EXEMPLOS, EXTRAS)
     assert r["status"] == "aceito" and r["completo"], r
+
+
+# ---------------- layout da Vercel ----------------
+
+def test_compila_com_dependencias_fora_do_site_packages(tmp_path):
+    """Na Vercel o meupia-core fica fora do site-packages do interpretador e o compilador roda com -I.
+    Regressão: a submissão dava "ModuleNotFoundError: No module named 'meuPia'" só em produção."""
+    import importlib.util
+    import subprocess
+
+    venv = tmp_path / "venv"
+    subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(venv)], check=True)
+    deps = os.path.dirname(os.path.dirname(importlib.util.find_spec("meuPia").origin))
+    script = (
+        "import json, sys; sys.path.insert(0, 'api'); from _lib import juiz; "
+        "d = json.load(open('arena/exemplos/B91.json')); "
+        "print(juiz.julgar(d['gabarito'], d['testesPublicos'], d['testesExtras'])['status'])"
+    )
+    r = subprocess.run([str(venv / "bin" / "python"), "-c", script], cwd=RAIZ, capture_output=True, text=True,
+                       timeout=120, env={"PATH": "/usr/bin:/bin", "PYTHONPATH": deps})
+    assert r.stdout.strip() == "aceito", r.stdout + r.stderr

@@ -1,5 +1,6 @@
 // Botão Submeter da IDE: escolhe participantes, envia ao juiz e mostra o veredito.
 import { api, escapar, formatarRelogio, textoRelogio } from "./api.js";
+import { marcarErroCompilacao, limparErroCompilacao } from "../editor/meupia-lang.js";
 
 const fracao = (b) => `${b.aprovados}/${b.total}`;
 const MOTIVO_EXEMPLO = {
@@ -13,7 +14,7 @@ const MENSAGENS = {
     : `🟡 ACEITO PARCIAL — ${fracao(r.extras)} extras · ${r.pontos}/${r.pontosModulo} pts`,
   reprovado_exemplos: (r) =>
     `❌ Passe primeiro em todos os testes de exemplo (${fracao(r.exemplos)})${MOTIVO_EXEMPLO[r.falhaExemplo] || ""}`,
-  erro_compilacao: (r) => `🛠️ ERRO DE COMPILAÇÃO${r.linha ? ` (linha ${r.linha})` : ""}: ${r.mensagem}`,
+  erro_compilacao: (r) => `🛠️ ERRO DE COMPILAÇÃO${r.linha && !/linha \d/.test(r.mensagem || "") ? ` (linha ${r.linha})` : ""}: ${r.mensagem}`,
   erro_execucao: (r) => `💥 ${r.mensagem}`,
   cooldown: (r) => `⏳ ${r.mensagem}`,
 };
@@ -135,6 +136,26 @@ export function setupSubmissao(view, desafio) {
     iniciarEspera(r.espera || 0);
   });
 
+  // Resultado do juiz: janela que precisa ser fechada (não passa despercebido) + cópia fixa nas instruções.
+  const modalVeredito = document.getElementById("veredito-modal");
+  const fecharVeredito = () => {
+    modalVeredito?.classList.add("hidden");
+    view.focus();
+  };
+  document.getElementById("close-veredito-btn")?.addEventListener("click", fecharVeredito);
+  document.getElementById("ok-veredito-btn")?.addEventListener("click", fecharVeredito);
+  modalVeredito?.addEventListener("click", (ev) => { if (ev.target === modalVeredito) fecharVeredito(); });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && modalVeredito && !modalVeredito.classList.contains("hidden")) fecharVeredito();
+  });
+
+  function dicaVeredito(r) {
+    if (r.status === "erro_compilacao") return r.linha ? `A linha ${r.linha} foi marcada no editor.` : "";
+    if (r.status === "reprovado_exemplos") return "Use o botão Rodar para ver qual exemplo falhou.";
+    if (r.status === "aceito" && !r.completo) return "Alguns testes extras falharam. Pense nos casos de borda e reenvie.";
+    return "";
+  }
+
   function mostrarVeredito(r) {
     let texto = (MENSAGENS[r.status] || ((x) => x.mensagem || x.status))(r);
     if (r.status === "aceito" && r.melhor) texto += "\n" + textoMelhor(r.melhor, r.pontosModulo);
@@ -147,6 +168,18 @@ export function setupSubmissao(view, desafio) {
     }
     box.className = `arena-veredito ${cls}`;
     box.textContent = texto;
+
+    if (r.status === "erro_compilacao" && r.linha) marcarErroCompilacao(view, r.linha, 0);
+    else limparErroCompilacao(view);
+
+    if (!modalVeredito) return;
+    const caixa = document.getElementById("veredito-texto");
+    caixa.className = `arena-veredito ${cls}`;
+    caixa.textContent = texto;
+    document.getElementById("veredito-dica").textContent = dicaVeredito(r);
+    modalVeredito.classList.remove("hidden");
+    if (window.lucide) window.lucide.createIcons();
+    document.getElementById("ok-veredito-btn")?.focus();
   }
 
   if (desafio.situacao !== "aberta") {
