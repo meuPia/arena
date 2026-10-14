@@ -1,6 +1,8 @@
 """Confere com o juiz real o que docs/cartao-dialeto.md afirma sobre o dialeto.
 
-Se um teste daqui quebrar depois de trocar a versão do meupia-core, atualize o cartão junto.
+Se um teste daqui quebrar depois de trocar a versão do meupia-core, atualize o cartão junto. O cartão também é a
+Ajuda da IDE (botão Ajuda, com busca): o que mudar nele muda o que as equipes veem no próximo deploy, e
+src/arena/ajuda.test.js confere as seções e a busca com o arquivo real.
 """
 import os
 import sys
