@@ -37,6 +37,7 @@
 
         <div class="action-group">
           <button id="theme-btn" title="Alternar Tema" aria-label="Alternar tema" data-alternar-tema><i data-lucide="sun"></i></button>
+          <button id="ajuda-btn" title="Ajuda: cartão do dialeto" aria-label="Ajuda: cartão do dialeto"><i data-lucide="circle-help"></i></button>
           <button id="settings-btn" title="Configurações" aria-label="Configurações"><i data-lucide="settings"></i></button>
         </div>
 
@@ -80,6 +81,21 @@
           <p class="arena-aviso">A submissão só é aceita se passar em <strong>todos os testes de exemplo</strong>. Os pontos dependem de quantos <strong>testes extras</strong> o juiz aprovar, e no empate vence o menor código (comentários e indentação não contam). Você pode reenviar para melhorar. Depois de 3 tentativas neste módulo, cada nova submissão espera 3 minutos.</p>
           <button id="confirm-submit-btn" class="arena-primario"><i data-lucide="send"></i> Enviar para o juiz</button>
         </div>
+      </div>
+    </div>
+
+    <div id="ajuda-modal" class="modal-overlay arena-modal-ajuda hidden" role="dialog" aria-modal="true" aria-labelledby="ajuda-titulo">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="ajuda-titulo"><i data-lucide="circle-help"></i> Cartão do dialeto</h3>
+          <button id="close-ajuda-btn" class="icon-btn" title="Fechar" aria-label="Fechar"><i data-lucide="x"></i></button>
+        </div>
+        <div class="arena-ajuda-busca">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input type="search" id="ajuda-busca" placeholder="Buscar no cartão (ex.: dic, para, piso)" aria-label="Buscar no cartão do dialeto" aria-controls="ajuda-corpo" autocomplete="off" spellcheck="false">
+          <span id="ajuda-status" class="arena-ajuda-status" aria-live="polite"></span>
+        </div>
+        <div id="ajuda-corpo" class="modal-body desafio-instrucoes"></div>
       </div>
     </div>
 

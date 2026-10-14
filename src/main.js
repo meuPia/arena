@@ -8,6 +8,8 @@ import { initWasmEngine, runWasmCode, getPyodide } from "./engine/wasm.js";
 import { carregarDesafioDaURL, desafioAtual } from "./engine/desafios.js";
 import { renderDesafio, parseTestLine } from "./ui/instructions.js";
 import { setupToolbar } from "./ui/toolbar.js";
+import { setupAjuda } from "./arena/ajuda.js";
+import cartaoDialeto from "./arena/cartao.js";
 import { setupLayout } from "./ui/layout.js";
 import { setupSubmissao } from "./arena/submissao.js";
 import { gravarRascunho } from "./arena/api.js";
@@ -74,6 +76,7 @@ const view = new EditorView({
 });
 
 setupToolbar(view, term, themeConfig);
+setupAjuda(view, cartaoDialeto);
 
 // Arena: troca de tema (botão da IDE ou outra aba) reconfigura editor e terminal sem perder código nem histórico.
 window.addEventListener("arena:tema", (ev) => {
