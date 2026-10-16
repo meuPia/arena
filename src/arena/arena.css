@@ -497,3 +497,95 @@ body.arena-ide .modal-subtitle { color: var(--a-muted); }
 .arena-login-banca { display: grid; gap: 14px; max-width: 520px; min-height: 0; margin: 6vh auto 0; align-items: start; }
 .arena-login-banca h1 { margin: 0; }
 .arena-login-banca .arena-form { max-width: none; padding: 24px; }
+
+/* ---------- IDE no celular (≤ 768 px, ou celular deitado: até 500 px de altura com tela de toque) ----------
+   Painéis em abas guiadas por <body data-aba> (src/arena/ide-mobile.js). O Split.js do Lab continua montado:
+   aqui os tamanhos inline dele são sobrepostos e os divisores somem; fora do media query tudo volta como era.
+   A consulta é a mesma de CONSULTA_CELULAR em ide-mobile.js. */
+.arena-acoes-principais, .arena-mais { display: contents; }
+.arena-abas-mobile, .arena-so-celular { display: none; }
+
+@media (max-width: 768px), (max-height: 500px) and (pointer: coarse) {
+  .arena-so-desktop { display: none !important; }
+  body.arena-ide {
+    height: var(--a-vh, 100dvh); overflow: hidden; box-sizing: border-box;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+
+  /* Cabeçalho compacto: marca (ícone) + Missões (ícone) + desfazer/refazer/Mais; a missão na segunda linha */
+  body.arena-ide > header { min-height: 0; padding: 6px 12px; gap: 6px 8px; flex-wrap: wrap; }
+  body.arena-ide .logo-container { order: 1; gap: 8px; font-size: 16px; }
+  body.arena-ide .arena-marca-texto, body.arena-ide .arena-voltar-texto { display: none; }
+  body.arena-ide .arena-voltar { margin-left: 0; min-width: 44px; min-height: 44px; padding: 0; justify-content: center; }
+  body.arena-ide .actions { order: 2; margin-left: auto; gap: 4px; flex-wrap: nowrap; position: relative; }
+  body.arena-ide .arena-so-celular { display: flex; align-items: center; gap: 4px; }
+  body.arena-ide .arena-acoes-topo .icon-btn { min-width: 44px; min-height: 44px; color: var(--a-text-2); border: 1px solid var(--a-border); }
+  body.arena-ide .arena-acoes-topo .icon-btn[aria-expanded="true"] { color: var(--a-text); background: var(--a-surface-3); border-color: var(--a-border-forte); }
+  body.arena-ide .arena-missao-topo { order: 3; flex: 1 1 100%; flex-wrap: nowrap; gap: 8px; min-width: 0; }
+  body.arena-ide .arena-missao-topo strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+  body.arena-ide .arena-missao-sub { display: none; }
+  body.arena-ide .arena-missao-melhor { flex: none; white-space: nowrap; font-size: 12px; }
+  body.arena-ide .arena-missao-relogio { flex: none; padding: 4px 8px; font-size: 14px; }
+  body.arena-ide .arena-missao-relogio small { display: none; }
+
+  /* Menu "Mais": os grupos de ação do Lab viram uma lista suspensa com rótulo (o aria-label de cada botão) */
+  body.arena-ide .arena-mais {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0; z-index: 900; min-width: 250px;
+    flex-direction: column; padding: 6px; background: var(--a-surface); border: 1px solid var(--a-border-forte);
+    box-shadow: var(--a-sombra);
+  }
+  body.arena-ide .arena-mais.aberto { display: flex; }
+  body.arena-ide .arena-mais .action-group { flex-direction: column; align-items: stretch; gap: 0; padding: 0; border: 0; }
+  body.arena-ide .arena-mais .action-group + .action-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--a-border); }
+  body.arena-ide .arena-mais .action-group button { justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 12px; color: var(--a-text); }
+  body.arena-ide .arena-mais .action-group button::after { content: attr(aria-label); font-size: 15px; text-align: left; }
+  body.arena-ide .arena-mais #undo-btn, body.arena-ide .arena-mais #redo-btn, body.arena-ide .arena-mais .divider { display: none; }
+
+  /* Abas */
+  body.arena-ide .arena-abas-mobile { display: flex; flex: none; background: var(--a-surface-2); border-bottom: 1px solid var(--a-border); }
+  body.arena-ide .arena-abas-mobile button {
+    position: relative; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px;
+    padding: 0 6px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--a-muted); cursor: pointer;
+    font-family: var(--a-font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  }
+  body.arena-ide .arena-abas-mobile button[aria-selected="true"] { color: var(--a-text); border-bottom-color: var(--a-accent-text); }
+  body.arena-ide .arena-abas-mobile button[data-novo]::after {
+    content: ""; position: absolute; top: 10px; right: calc(50% - 44px); width: 7px; height: 7px; border-radius: 50%; background: var(--a-info);
+  }
+  body.arena-ide .arena-abas-mobile svg { width: 15px; height: 15px; }
+
+  /* Área dos painéis: só o painel da aba ativa, ocupando tudo */
+  body.arena-ide .ide-container { flex: 1; min-height: 0; flex-direction: column !important; }
+  body.arena-ide .gutter { display: none; }
+  body.arena-ide #editor-pane, body.arena-ide #side-pane, body.arena-ide #test-pane, body.arena-ide #terminal-pane {
+    width: 100% !important; height: 100% !important; flex: 1 1 auto; min-height: 0; box-sizing: border-box;
+  }
+  body.arena-ide[data-aba="codigo"] #side-pane,
+  body.arena-ide:not([data-aba="codigo"]) #editor-pane,
+  body.arena-ide[data-aba="missao"] #terminal-pane,
+  body.arena-ide[data-aba="terminal"] #test-pane { display: none !important; }
+  body.arena-ide #test-content { padding: 16px; }
+  body.arena-ide .desafio-header h2 { font-size: 22px; }
+  body.arena-ide .desafio-instrucoes table { display: block; max-width: 100%; overflow-x: auto; }
+  body.arena-ide #grid-canvas { max-width: 100%; height: auto; }
+  body.arena-ide .canvas-wrapper { max-width: 100%; box-sizing: border-box; }
+  /* Mínimo de 16 px: abaixo disso o navegador do celular amplia a página ao focar o editor */
+  body.arena-ide .cm-editor { font-size: max(16px, var(--editor-font-size, 14px)); }
+
+  /* Barra de ação fixa no rodapé */
+  body.arena-ide .arena-acoes-principais {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 800;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); background: var(--a-surface-2); border-top: 1px solid var(--a-border);
+  }
+  body.arena-ide #run-btn, body.arena-ide #submit-btn { justify-content: center; min-height: 44px; padding: 0 12px; }
+
+  /* Modais em tela cheia */
+  body.arena-ide .modal-content, body.arena-ide .arena-modal-ajuda .modal-content {
+    width: 100%; max-width: none; height: var(--a-vh, 100dvh); max-height: none; display: flex; flex-direction: column;
+    border: 0; box-sizing: border-box;
+  }
+  body.arena-ide .modal-body { flex: 1; min-height: 0; overflow: auto; }
+  body.arena-ide .modal-header { padding: 4px 8px 4px 16px; }
+  body.arena-ide .modal-header .icon-btn { min-width: 44px; min-height: 44px; }
+  body.arena-ide .arena-ajuda-busca { padding: 8px 12px; }
+}
