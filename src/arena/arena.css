@@ -406,6 +406,34 @@ body.arena-ide .test-item { border-radius: 0; font-family: var(--a-font-mono); }
 body.arena-ide .test-item.success { background: var(--a-accent-bg); color: var(--a-accent-text); border-color: var(--a-accent-borda); }
 body.arena-ide .test-item.fail { background: var(--a-fail-bg); color: var(--a-fail); border-color: color-mix(in srgb, var(--a-fail) 45%, transparent); }
 
+/* Esperado × obtido dos testes de exemplo (src/arena/testes-exemplo.js) */
+body.arena-ide #test-results { container-type: inline-size; }
+body.arena-ide .arena-testes-resumo { margin: 0 0 10px; font-family: var(--a-font-mono); font-size: 13px; letter-spacing: .04em; color: var(--a-text-2); }
+body.arena-ide .arena-teste { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid; }
+body.arena-ide .arena-teste.pendente { background: var(--a-surface-3); color: var(--a-muted); border-color: var(--a-border); }
+body.arena-ide .arena-teste-cabecalho { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+body.arena-ide .arena-teste-estado { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+body.arena-ide .arena-teste-entrada { color: var(--a-text-2); font-size: 13px; }
+body.arena-ide .arena-teste-entrada code { color: var(--a-text); }
+body.arena-ide .arena-teste-lados { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@container (max-width: 420px) {
+  body.arena-ide .arena-teste-lados { grid-template-columns: 1fr; }
+}
+body.arena-ide .arena-teste-lado { min-width: 0; padding: 8px 10px; background: var(--a-surface); border: 1px solid var(--a-border); color: var(--a-text); }
+body.arena-ide .arena-teste-titulo { margin-bottom: 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--a-muted); }
+body.arena-ide .arena-teste-tipo { margin-left: 6px; padding: 0 6px; border: 1px solid var(--a-border); color: var(--a-text-2); text-transform: none; letter-spacing: 0; }
+body.arena-ide .arena-teste-valor { display: block; font-family: var(--a-font-mono); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--a-text); }
+body.arena-ide .arena-teste-prefixo { color: var(--a-text-2); }
+body.arena-ide .arena-teste-espaco { color: var(--a-muted); }
+body.arena-ide .arena-teste mark {
+  background: var(--a-gold-bg); color: var(--a-text); outline: 1px solid var(--a-gold-borda);
+  text-decoration: underline 2px; text-underline-offset: 3px; padding: 0;
+}
+body.arena-ide .arena-teste mark.arena-teste-tipo { margin-left: 6px; padding: 0 6px; }
+body.arena-ide .arena-teste mark.arena-teste-falta { display: inline-block; width: 2px; height: 1.1em; vertical-align: text-bottom; background: var(--a-text); outline: 0; }
+body.arena-ide .arena-teste-dica, body.arena-ide .arena-teste-nota { margin: 0; font-family: var(--a-font-text); font-size: 14px; color: var(--a-text); }
+body.arena-ide .arena-teste-nota { color: var(--a-text-2); }
+
 body.arena-ide .modal-overlay { background: var(--a-overlay); }
 body.arena-ide .modal-content { border-radius: 0; background: var(--a-surface); border-color: var(--a-border-forte); box-shadow: var(--a-sombra); }
 body.arena-ide .modal-header { border-radius: 0; background: var(--a-surface-2); }

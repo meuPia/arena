@@ -16,6 +16,8 @@ import { gravarRascunho } from "./arena/api.js";
 import { GridManager } from "./engine/grid/gridManager.js";
 import { temaAtual } from "./arena/tema.js";
 import { extensoesEditor, temaTerminal } from "./arena/editor-tema.js";
+import { ativarTestesArena, testesArenaAtivos, iniciarRodada, concluirRodada } from "./arena/testes-exemplo.js";
+import pluginTestesArena from "./arena/testes-plugin.js";
 
 const hasDesafio = await carregarDesafioDaURL();
 if (!hasDesafio) throw new Error("[arena] sem missão: redirecionando ao painel");
@@ -34,7 +36,7 @@ term.open(document.getElementById("terminal-pane"));
 const originalWriteln = term.writeln.bind(term);
 term.writeln = (text) => {
   originalWriteln(text);
-  parseTestLine(text); 
+  if (!testesArenaAtivos()) parseTestLine(text); // Arena: com o plugin da Arena, o painel vem de testes-exemplo.js
 };
 
 window.addEventListener('resize', () => fitAddon.fit());
@@ -132,7 +134,9 @@ runBtn.addEventListener("click", async () => {
       }
   }
   
+    iniciarRodada(getPyodide(), desafioAtual.codigoTeste);
     await runWasmCode(view, term);
+    concluirRodada(getPyodide());
     if (window.meuPiaGridAPI && window.meuPiaGridAPI.hasAnimation()) {
       const tabGrid = document.getElementById('tab-grid');
       if (tabGrid) {
@@ -145,5 +149,5 @@ runBtn.addEventListener("click", async () => {
     }
 });
 
-initWasmEngine(term, runBtn);
+initWasmEngine(term, runBtn).then(() => ativarTestesArena(getPyodide(), pluginTestesArena));
 setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 100);
