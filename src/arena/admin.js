@@ -196,17 +196,20 @@ $("equipes").addEventListener("click", (ev) => {
 // ---------------- participantes ----------------
 
 let participantesCache = [];
+let semEquipe = 0;
 
 async function carregarParticipantes() {
   const [eqs, r] = await Promise.all([admin("equipes"), admin("participantes")]);
   const select = $("form-participante").elements.equipe;
   const noBanco = eqs.origem === "banco";
-  select.innerHTML = noBanco
+  select.innerHTML = `<option value="">Sem equipe</option>` + (noBanco
     ? eqs.equipes.map((e) => `<option value="${escapar(e.id)}">${escapar(e.nome)}</option>`).join("")
-    : `<option value="">Importe as equipes na aba Equipes</option>`;
+    : "");
   participantesCache = r.participantes;
+  semEquipe = r.semEquipe;
+  $("contagem-sem-equipe").textContent = `${r.participantes.length} participante(s), ${r.semEquipe} sem equipe.`;
   $("participantes").innerHTML = r.participantes.map((p) => `
-    <tr><td>${escapar(p.nomeEquipe)}</td><td>${escapar(p.nome)}</td><td>${escapar(p.semestre)}</td><td>${escapar(p.email || "")}</td>
+    <tr><td>${p.nomeEquipe ? escapar(p.nomeEquipe) : `<span class="arena-sem-equipe">sem equipe</span>`}</td><td>${escapar(p.nome)}</td><td>${escapar(p.semestre)}</td><td>${escapar(p.email || "")}</td>
       <td><button class="arena-link" data-editar="${escapar(p.id)}">editar</button>
           <button class="arena-link" data-remover="${escapar(p.id)}">remover</button></td></tr>`).join("");
 }
@@ -241,6 +244,126 @@ $("participantes").addEventListener("click", (ev) => {
     tentar(async () => { await adminPost("remover_participante", { id: p.id }); await carregarParticipantes(); });
   }
 });
+
+// ---------------- importar alunos ----------------
+
+// Planilhas do Excel no Brasil costumam vir em Windows-1252: tenta UTF-8 estrito e, se falhar, Windows-1252.
+async function lerTexto(arquivo) {
+  const bytes = await arquivo.arrayBuffer();
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { return new TextDecoder("windows-1252").decode(bytes); }
+}
+
+let alunosPendentes = "";
+
+// Dentro de um diálogo modal o erro do painel fica escondido atrás: mostra no próprio diálogo.
+function noDialogo(alvo, fn) {
+  return async (...args) => {
+    const p = $(alvo);
+    p.classList.remove("arena-erro");
+    try { await fn(...args); } catch (e) { p.textContent = e.message || String(e); p.classList.add("arena-erro"); }
+  };
+}
+
+function abrirImportarAlunos() {
+  $("alunos-texto").value = "";
+  $("alunos-arquivo-nome").textContent = "";
+  $("previa-alunos-resultado").innerHTML = "";
+  $("resultado-alunos").textContent = "";
+  $("confirmar-alunos").classList.add("hidden");
+  $("dialogo-alunos").showModal();
+}
+
+$("abrir-importar-alunos").addEventListener("click", abrirImportarAlunos);
+$("fechar-alunos").addEventListener("click", () => $("dialogo-alunos").close());
+$("alunos-arquivo").addEventListener("change", noDialogo("resultado-alunos", async (ev) => {
+  const arquivo = ev.target.files[0];
+  ev.target.value = "";
+  if (!arquivo) return;
+  $("alunos-texto").value = await lerTexto(arquivo);
+  $("alunos-arquivo-nome").textContent = arquivo.name;
+  await previaAlunos();
+}));
+$("alunos-texto").addEventListener("input", () => $("confirmar-alunos").classList.add("hidden"));
+
+async function previaAlunos() {
+  const texto = $("alunos-texto").value;
+  $("resultado-alunos").textContent = "";
+  const r = await adminPost("importar_participantes", { texto });
+  alunosPendentes = texto;
+  $("resultado-alunos").textContent = "";
+  $("previa-alunos-resultado").innerHTML = `
+    <p><strong>${r.alunos.length} aluno(s) a criar</strong>${r.ignoradas.length ? ` · ${r.ignoradas.length} linha(s) ignorada(s)` : ""}</p>
+    ${r.ignoradas.length ? `<table class="arena-tabela pequena"><thead><tr><th>Linha</th><th>Texto</th><th>Motivo</th></tr></thead><tbody>${
+      r.ignoradas.map((i) => `<tr><td>${i.linha}</td><td>${escapar(i.texto)}</td><td class="arena-falha-texto">${escapar(i.motivo)}</td></tr>`).join("")
+    }</tbody></table>` : ""}
+    ${r.alunos.length ? `<table class="arena-tabela pequena"><thead><tr><th>Nome</th><th>Semestre</th><th>E-mail</th></tr></thead><tbody>${
+      r.alunos.map((a) => `<tr><td>${escapar(a.nome)}</td><td>${escapar(a.semestre)}</td><td>${escapar(a.email)}</td></tr>`).join("")
+    }</tbody></table>` : ""}`;
+  $("confirmar-alunos").classList.toggle("hidden", !r.alunos.length);
+}
+
+$("previa-alunos").addEventListener("click", noDialogo("resultado-alunos", previaAlunos));
+$("confirmar-alunos").addEventListener("click", noDialogo("resultado-alunos", async () => {
+  const r = await adminPost("importar_participantes", { texto: alunosPendentes, confirmar: true });
+  $("resultado-alunos").textContent = `${r.criados} aluno(s) importado(s), sem equipe.`;
+  $("confirmar-alunos").classList.add("hidden");
+  await carregarParticipantes();
+}));
+
+// ---------------- montar equipes ----------------
+
+let montagem = null;
+
+function resumoMontagem() {
+  const t = Number($("montar-tamanho").value);
+  $("montar-resumo").textContent = t >= 2 && t <= 10
+    ? `${semEquipe} aluno(s) sem equipe → ${Math.ceil(semEquipe / t)} equipe(s)`
+    : "Escolha de 2 a 10 alunos por equipe.";
+}
+
+$("abrir-montar-equipes").addEventListener("click", async () => {
+  montagem = null;
+  await tentar(carregarParticipantes); // contagem de sem equipe atualizada (outro admin pode ter importado)
+  $("previa-montar-resultado").innerHTML = "";
+  $("resultado-montar").textContent = "";
+  $("previa-montar").textContent = "Pré-visualizar";
+  $("confirmar-montar").classList.add("hidden");
+  resumoMontagem();
+  $("dialogo-montar").showModal();
+});
+$("fechar-montar").addEventListener("click", () => $("dialogo-montar").close());
+$("montar-tamanho").addEventListener("input", () => {
+  montagem = null;
+  $("confirmar-montar").classList.add("hidden");
+  $("previa-montar").textContent = "Pré-visualizar";
+  resumoMontagem();
+});
+
+$("previa-montar").addEventListener("click", noDialogo("resultado-montar", async () => {
+  montagem = await adminPost("montar_equipes", { tamanho: Number($("montar-tamanho").value) });
+  $("resultado-montar").textContent = "";
+  $("previa-montar-resultado").innerHTML = montagem.equipes.map((e) => `
+    <article class="arena-turma">
+      <h3>${escapar(e.nome)} <small>${e.integrantes.length} aluno(s)</small></h3>
+      <p class="arena-turma-semestres">${Object.entries(e.porSemestre).map(([s, n]) => `${escapar(s)}: ${n}`).join(" · ")}</p>
+      <ul>${e.integrantes.map((i) => `<li>${escapar(i)}</li>`).join("")}</ul>
+    </article>`).join("");
+  semEquipe = montagem.equipes.reduce((n, e) => n + e.integrantes.length, 0);
+  resumoMontagem();
+  $("previa-montar").textContent = "Sortear de novo";
+  $("confirmar-montar").classList.remove("hidden");
+}));
+
+$("confirmar-montar").addEventListener("click", noDialogo("resultado-montar", async () => {
+  const { semente, assinatura, tamanho } = montagem;
+  const r = await adminPost("montar_equipes", { semente, assinatura, tamanho, confirmar: true });
+  $("resultado-montar").textContent = `${r.equipes.length} equipe(s) criada(s) com código de acesso. Veja a aba Equipes.`;
+  $("confirmar-montar").classList.add("hidden");
+  $("previa-montar").textContent = "Pré-visualizar";
+  montagem = null;
+  await carregarParticipantes();
+  resumoMontagem();
+}));
 
 // ---------------- perfis ----------------
 

@@ -9,7 +9,9 @@ import secrets
 import time
 from datetime import datetime
 
-from . import arena, auth, conteudo, servico, store, validacao
+import hashlib
+
+from . import arena, auth, conteudo, servico, store, turmas, validacao
 from .web import Erro
 
 PERMISSOES = {
@@ -21,6 +23,7 @@ PERMISSOES = {
     "criar_equipe": "admin", "editar_equipe": "admin", "excluir_equipe": "admin",
     "regenerar_codigo": "admin", "importar_equipes": "admin",
     "participantes": "admin", "salvar_participante": "admin", "remover_participante": "admin",
+    "importar_participantes": "admin", "montar_equipes": "admin",
     "ajustar": "juiz", "desfazer_ajuste": "juiz",
     # desafios: só admin (juízes nunca recebem testes extras nem gabaritos)
     "desafios": "admin", "desafio": "admin", "salvar_desafio": "admin", "validar_desafio": "admin",
@@ -188,11 +191,11 @@ def _excluir_equipe(autor, dados, db):
     e = _equipe_do_banco(db, dados.get("id"))
     if _submissoes_da_equipe(db, e["id"]) or db.lrange(store.k_aceitas(e["id"]), 0, 0):
         raise Erro(409, "A equipe já submeteu e não pode ser excluída.")
-    removidos = [pid for pid, p in arena.participantes(db).items() if p.get("equipe") == e["id"]]
-    for pid in removidos:
-        db.hdel(store.k_participantes(), pid)
+    soltos = [p for p in arena.participantes(db).values() if p.get("equipe") == e["id"]]
+    for p in soltos:  # voltam para "sem equipe" (podem entrar numa nova montagem)
+        _gravar_participante(db, {**p, "equipe": ""})
     db.hdel(store.k_equipes(), e["id"])
-    auditar(db, autor, "excluir_equipe", e["nome"], f"{len(removidos)} participante(s) removido(s)")
+    auditar(db, autor, "excluir_equipe", e["nome"], f"{len(soltos)} participante(s) sem equipe")
     return {"ok": True}
 
 
@@ -232,19 +235,32 @@ def _importar_equipes(autor, _dados, db):
 
 # ---------------- participantes ----------------
 
+def _gravar_participante(db, p):
+    db.hset(store.k_participantes(), p["id"], json.dumps(
+        {k: p.get(k, "") for k in ("id", "equipe", "nome", "semestre", "email")}, ensure_ascii=False))
+
+
+def _sem_equipe(db):
+    """Participantes sem equipe (equipe vazia ou de uma equipe que não existe mais no banco)."""
+    eqs = arena.equipes_do_banco(db)
+    return [p for p in arena.participantes(db).values() if p.get("equipe", "") not in eqs]
+
+
 def _participantes(_autor, _dados, db):
     eqs = arena.equipes_do_banco(db)
-    lista = [{**p, "nomeEquipe": eqs.get(p["equipe"], {}).get("nome", "?")} for p in arena.participantes(db).values()]
-    lista.sort(key=lambda p: (p["nomeEquipe"].lower(), p["nome"].lower()))
-    return {"participantes": lista}
+    lista = [{**p, "nomeEquipe": eqs[p["equipe"]]["nome"] if p.get("equipe") in eqs else ""}
+             for p in arena.participantes(db).values()]
+    lista.sort(key=lambda p: (bool(p["nomeEquipe"]), p["nomeEquipe"].lower(), p["nome"].lower()))
+    return {"participantes": lista, "semEquipe": sum(1 for p in lista if not p["nomeEquipe"])}
 
 
 def _salvar_participante(autor, dados, db):
-    """Cria (sem id) ou edita (com id), inclusive trocando de equipe. Submissões já feitas não mudam."""
+    """Cria (sem id) ou edita (com id), inclusive trocando de equipe ou ficando sem equipe (`equipe` vazia).
+    Submissões já feitas não mudam."""
     nome = " ".join(str(dados.get("nome", "")).split())
     semestre = str(dados.get("semestre", "")).strip()
     email = str(dados.get("email", "") or "").strip().lower()
-    equipe = _equipe_do_banco(db, dados.get("equipe"))
+    equipe = _equipe_do_banco(db, dados.get("equipe")) if dados.get("equipe") else None
     if not nome or len(nome) > 60:
         raise Erro(400, "Informe o nome do participante (até 60 caracteres).")
     if not semestre or len(semestre) > 10:
@@ -257,9 +273,10 @@ def _salvar_participante(autor, dados, db):
         raise Erro(404, "Participante não encontrado.")
     novo = not pid
     pid = pid or "pt-" + secrets.token_hex(4)
-    db.hset(store.k_participantes(), pid, json.dumps(
-        {"id": pid, "equipe": equipe["id"], "nome": nome, "semestre": semestre, "email": email}, ensure_ascii=False))
-    auditar(db, autor, "criar_participante" if novo else "editar_participante", nome, f"equipe={equipe['nome']}")
+    _gravar_participante(db, {"id": pid, "equipe": equipe["id"] if equipe else "", "nome": nome,
+                              "semestre": semestre, "email": email})
+    auditar(db, autor, "criar_participante" if novo else "editar_participante", nome,
+            f"equipe={equipe['nome'] if equipe else 'sem equipe'}")
     return {"ok": True, "id": pid}
 
 
@@ -271,6 +288,74 @@ def _remover_participante(autor, dados, db):
     db.hdel(store.k_participantes(), pid)
     auditar(db, autor, "remover_participante", p["nome"])
     return {"ok": True}
+
+
+def _importar_participantes(autor, dados, db):
+    """Duas etapas: sem `confirmar`, devolve a prévia (alunos a criar + linhas ignoradas com o motivo); com
+    `confirmar`, relê o mesmo texto contra o banco atual e grava os alunos sem equipe."""
+    texto = dados.get("texto")
+    if not isinstance(texto, str) or not texto.strip():
+        raise Erro(400, "Envie um arquivo CSV ou cole a listagem de alunos.")
+    if len(texto) > 200_000:
+        raise Erro(400, "A listagem é grande demais.")
+    try:
+        alunos, ignoradas = turmas.ler_listagem(texto, [p["nome"] for p in arena.participantes(db).values()])
+    except ValueError as e:
+        raise Erro(400, str(e)) from None
+    if not dados.get("confirmar"):
+        return {"alunos": alunos, "ignoradas": ignoradas}
+    for a in alunos:
+        _gravar_participante(db, {"id": "pt-" + secrets.token_hex(4), "equipe": "", **a})
+    auditar(db, autor, "importar_participantes", "", f"{len(alunos)} aluno(s), {len(ignoradas)} linha(s) ignorada(s)")
+    return {"alunos": alunos, "ignoradas": ignoradas, "criados": len(alunos)}
+
+
+def _assinatura(participantes):
+    return hashlib.sha256(",".join(sorted(p["id"] for p in participantes)).encode()).hexdigest()
+
+
+def _montar_equipes(autor, dados, db):
+    """Duas etapas: sem `confirmar`, sorteia (semente nova, ou a recebida) e devolve a prévia com `semente` e
+    `assinatura` (dos alunos sem equipe); com `confirmar`, recalcula com a mesma semente e grava exatamente a
+    prévia, recusando se os alunos sem equipe mudaram. Equipes existentes não mudam."""
+    try:
+        tamanho = int(dados.get("tamanho"))
+    except (TypeError, ValueError):
+        tamanho = 0
+    if not 2 <= tamanho <= 10:
+        raise Erro(400, "Informe de 2 a 10 alunos por equipe.")
+    banco = arena.equipes_do_banco(db)
+    if not banco and arena.equipes_arquivo()[1] in ("env", "arquivo"):
+        raise Erro(409, "As equipes ainda vêm de ARENA_EQUIPES/arquivo. Importe-as antes de montar outras.")
+    soltos = _sem_equipe(db)
+    if not soltos:
+        raise Erro(409, "Não há alunos sem equipe para montar equipes.")
+    assinatura = _assinatura(soltos)
+    if dados.get("confirmar"):
+        if dados.get("assinatura") != assinatura:
+            raise Erro(409, "Os alunos sem equipe mudaram; gere uma nova prévia.")
+        try:
+            semente = int(dados.get("semente"))
+        except (TypeError, ValueError):
+            raise Erro(400, "Prévia inválida; gere uma nova prévia.") from None
+    else:
+        semente = secrets.randbits(32)
+    grupos = turmas.distribuir(soltos, tamanho, semente)
+    nomes = turmas.nomes_de_equipes(len(grupos), arena.PALAVRAS, [e["nome"] for e in banco.values()])
+    previa = [{"nome": nome, "integrantes": [arena.rotulo_participante(p) for p in g],
+               "porSemestre": turmas.por_semestre(g)} for (nome, _), g in zip(nomes, grupos)]
+    if not dados.get("confirmar"):
+        return {"semente": semente, "assinatura": assinatura, "tamanho": tamanho, "equipes": previa}
+    codigos, agora = [e["codigo"] for e in banco.values()], time.time()
+    for (nome, indice), g in zip(nomes, grupos):
+        e = {"id": "eq-" + secrets.token_hex(4), "nome": nome, "versao": 0, "criadaEm": agora,
+             "codigo": arena.gerar_codigo(indice, codigos)}
+        codigos.append(e["codigo"])
+        _gravar_equipe(db, e)
+        for p in g:
+            _gravar_participante(db, {**p, "equipe": e["id"]})
+    auditar(db, autor, "montar_equipes", "", f"{len(grupos)} equipe(s), {len(soltos)} aluno(s), tamanho {tamanho}")
+    return {"ok": True, "equipes": previa}
 
 
 # ---------------- ajuste de pontos ----------------
@@ -515,6 +600,7 @@ _ACOES = {
     "excluir_equipe": _excluir_equipe, "regenerar_codigo": _regenerar_codigo, "importar_equipes": _importar_equipes,
     "participantes": _participantes, "salvar_participante": _salvar_participante,
     "remover_participante": _remover_participante,
+    "importar_participantes": _importar_participantes, "montar_equipes": _montar_equipes,
     "ajustar": _ajustar, "desfazer_ajuste": _desfazer_ajuste,
     "desafios": _desafios, "desafio": _desafio, "salvar_desafio": _salvar_desafio,
     "validar_desafio": _validar_desafio, "validar_todos": _validar_todos,

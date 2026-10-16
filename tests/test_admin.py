@@ -142,6 +142,126 @@ def test_validacao_de_participante(db):
     assert len(lista) == 10 and lista[0]["nomeEquipe"] == "Equipe 1"
 
 
+# ---------------- alunos sem equipe, importação e montagem ----------------
+
+def turma(seis, quatro, dois):
+    return "\n".join(["Nome;Fase"] + [f"Aluno {s} {i};{s}" for s, n in ((6, seis), (4, quatro), (2, dois))
+                                       for i in range(n)])
+
+
+def integrantes(db):
+    return {e["nome"]: e["integrantes"] for e in arena.equipes(db).values()}
+
+
+def test_participante_sem_equipe_nao_aparece_em_nenhuma_equipe(db):
+    ex("importar_equipes", db=db)
+    ex("salvar_participante", {"equipe": "", "nome": "Bruno", "semestre": "6º"}, db)
+    r = ex("participantes", db=db)
+    assert r["semEquipe"] == 1 and r["participantes"][0]["nome"] == "Bruno" and r["participantes"][0]["nomeEquipe"] == ""
+    assert all("Bruno (6º)" not in i for i in integrantes(db).values())
+    assert "Bruno (6º)" not in servico.missao("equipe1", "B91", db=db)["integrantes"]
+    assert "sem equipe" in ex("auditoria", db=db)["auditoria"][0]["resumo"]
+
+
+def test_excluir_equipe_devolve_os_participantes(db):
+    ex("importar_equipes", db=db)
+    antes = {p["id"] for p in ex("participantes", db=db)["participantes"] if p["equipe"] == "equipe2"}
+    ex("excluir_equipe", {"id": "equipe2"}, db)
+    depois = ex("participantes", db=db)
+    assert {p["id"] for p in depois["participantes"] if not p["nomeEquipe"]} == antes and depois["semEquipe"] == 5
+
+
+def test_importar_alunos_com_previa_e_confirmacao(db):
+    ex("importar_equipes", db=db)
+    existente = ex("participantes", db=db)["participantes"][0]["nome"]
+    texto = turma(2, 2, 2) + f"\nRuim;semestre 9x\n{existente.upper()};2"
+    previa = ex("importar_participantes", {"texto": texto}, db)
+    assert len(previa["alunos"]) == 6 and [i["motivo"] for i in previa["ignoradas"]] == [
+        "semestre não reconhecido", "já cadastrado"]
+    assert ex("participantes", db=db)["semEquipe"] == 0 and acoes(db) == ["importar_equipes"]  # prévia não grava
+    r = ex("importar_participantes", {"texto": texto, "confirmar": True}, db)
+    assert r["criados"] == 6 and ex("participantes", db=db)["semEquipe"] == 6
+    assert acoes(db)[0] == "importar_participantes"
+    assert ex("auditoria", db=db)["auditoria"][0]["resumo"].startswith("6 aluno(s)")
+    again = ex("importar_participantes", {"texto": texto}, db)  # reimportar: todos já cadastrados
+    assert again["alunos"] == [] and len(again["ignoradas"]) == 8
+    with pytest.raises(Erro) as e:
+        ex("importar_participantes", {"texto": "  "}, db)
+    assert e.value.status == 400
+
+
+def test_importar_e_montar_sao_so_do_admin_e_por_post(db):
+    for acao in ("importar_participantes", "montar_equipes"):
+        with pytest.raises(Erro) as e:
+            ex(acao, {"texto": "Ana,2", "tamanho": 5}, db, autor=JUIZ)
+        assert e.value.status == 403
+        with pytest.raises(Erro) as e:
+            admin.executar(acao, ROOT, {"texto": "Ana,2", "tamanho": 5}, db, metodo="GET")
+        assert e.value.status == 405
+    assert ex("participantes", db=db)["participantes"] == []
+
+
+def test_montar_equipes_niveladas_e_entrar_com_o_codigo(db):
+    ex("importar_participantes", {"texto": turma(8, 14, 18), "confirmar": True}, db)
+    previa = ex("montar_equipes", {"tamanho": 5}, db)
+    assert [len(e["integrantes"]) for e in previa["equipes"]] == [5] * 8
+    assert all(e["porSemestre"]["6º"] == 1 for e in previa["equipes"])
+    assert [e["nome"] for e in previa["equipes"]][:3] == ["Orion", "Vega", "Lyra"]
+    assert ex("participantes", db=db)["semEquipe"] == 40  # prévia não grava
+    outra = ex("montar_equipes", {"tamanho": 5}, db)
+    assert outra["semente"] != previa["semente"]
+    ex("montar_equipes", {"tamanho": 5, "semente": previa["semente"], "assinatura": previa["assinatura"],
+                          "confirmar": True}, db)
+    assert integrantes(db) == {e["nome"]: sorted(e["integrantes"], key=str.lower) for e in previa["equipes"]}
+    orion = next(e for e in ex("equipes", db=db)["equipes"] if e["nome"] == "Orion")
+    assert orion["codigo"].startswith("ORION-") and servico.login(orion["codigo"], db=db)["equipe"]["nome"] == "Orion"
+    assert ex("participantes", db=db)["semEquipe"] == 0
+    aud = ex("auditoria", db=db)["auditoria"][0]
+    assert aud["acao"] == "montar_equipes" and aud["resumo"] == "8 equipe(s), 40 aluno(s), tamanho 5"
+    assert not any(e["codigo"] in json.dumps(ex("auditoria", db=db)) for e in ex("equipes", db=db)["equipes"])
+
+
+def test_montar_nao_mexe_nas_equipes_existentes(db):
+    ex("criar_equipe", {"nome": "Orion"}, db)
+    ex("criar_equipe", {"nome": "vega"}, db)
+    eid = next(e["id"] for e in ex("equipes", db=db)["equipes"] if e["nome"] == "Orion")
+    ex("salvar_participante", {"equipe": eid, "nome": "Zoe", "semestre": "4º"}, db)
+    antes = {e["id"]: e["codigo"] for e in ex("equipes", db=db)["equipes"]}
+    ex("importar_participantes", {"texto": turma(2, 3, 5), "confirmar": True}, db)
+    p = ex("montar_equipes", {"tamanho": 5}, db)
+    ex("montar_equipes", {**p, "confirmar": True}, db)
+    depois = {e["id"]: e for e in ex("equipes", db=db)["equipes"]}
+    assert all(depois[i]["codigo"] == c for i, c in antes.items())
+    assert depois[eid]["integrantes"] == ["Zoe (4º)"]
+    assert sorted(e["nome"] for i, e in depois.items() if i not in antes) == ["Lyra", "Nova"]
+
+
+def test_previa_desatualizada_e_validacoes_da_montagem(db):
+    with pytest.raises(Erro) as e:
+        ex("montar_equipes", {"tamanho": 5}, db)
+    assert e.value.status == 409  # sem alunos sem equipe
+    ex("importar_participantes", {"texto": turma(1, 1, 3), "confirmar": True}, db)
+    for t in (1, 11, "x", None):
+        with pytest.raises(Erro) as e:
+            ex("montar_equipes", {"tamanho": t}, db)
+        assert e.value.status == 400
+    p = ex("montar_equipes", {"tamanho": 5}, db)
+    assert len(p["equipes"]) == 1
+    ex("importar_participantes", {"texto": "Novata;2", "confirmar": True}, db)
+    with pytest.raises(Erro) as e:
+        ex("montar_equipes", {**p, "confirmar": True}, db)
+    assert e.value.status == 409 and "nova prévia" in str(e.value)
+    assert arena.equipes_do_banco(db) == {} and ex("participantes", db=db)["semEquipe"] == 6  # nada gravado
+
+
+def test_montar_exige_importar_quando_ha_equipes_no_arquivo(db, monkeypatch):
+    monkeypatch.setenv("ARENA_EQUIPES", json.dumps([{"id": "a", "nome": "A", "codigo": "A-1"}]))
+    ex("importar_participantes", {"texto": "Ana;2", "confirmar": True}, db)
+    with pytest.raises(Erro) as e:
+        ex("montar_equipes", {"tamanho": 2}, db)
+    assert e.value.status == 409
+
+
 # ---------------- ajuste de pontos ----------------
 
 def parcial_b92():

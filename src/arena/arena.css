@@ -589,3 +589,23 @@ body.arena-ide .modal-subtitle { color: var(--a-muted); }
   body.arena-ide .modal-header .icon-btn { min-width: 44px; min-height: 44px; }
   body.arena-ide .arena-ajuda-busca { padding: 8px 12px; }
 }
+
+/* Admin: importar alunos e montar equipes (aba Participantes) */
+.arena-sem-equipe {
+  display: inline-block; padding: 1px 8px; border: 1px solid var(--a-info-borda); background: var(--a-info-bg); color: var(--a-info);
+  font-family: var(--a-font-mono); font-size: 12px; letter-spacing: .04em;
+}
+.arena-turmas { display: grid; gap: 10px; padding-bottom: 16px; }
+.arena-turmas .arena-form-linha { margin-top: 0; align-items: end; }
+.arena-turmas-texto { width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--a-font-mono); }
+.arena-turmas .arena-tabela { width: 100%; margin: 0; }
+.arena-falha-texto { color: var(--a-fail); }
+.arena-turmas-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.arena-turma { padding: 10px 12px; border: 1px solid var(--a-border-forte); background: var(--a-surface-2); }
+.arena-turma h3 {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0 0 4px;
+  font-family: var(--a-font-display); font-size: 16px; text-transform: uppercase; letter-spacing: .04em; color: var(--a-text);
+}
+.arena-turma h3 small { font-family: var(--a-font-mono); font-size: 12px; font-weight: 400; text-transform: none; color: var(--a-muted); }
+.arena-turma-semestres { margin: 0 0 6px; font-family: var(--a-font-mono); font-size: 12px; color: var(--a-info); }
+.arena-turma ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: var(--a-text-2); }

@@ -56,6 +56,11 @@
         </section>
 
         <section id="aba-participantes" class="arena-aba hidden">
+          <div class="arena-form-linha">
+            <button id="abrir-importar-alunos" class="arena-secundario" type="button">Importar alunos…</button>
+            <button id="abrir-montar-equipes" class="arena-secundario" type="button">Montar equipes…</button>
+            <span id="contagem-sem-equipe" class="arena-aviso"></span>
+          </div>
           <form id="form-participante" class="arena-form-linha">
             <input type="hidden" name="id" />
             <select name="equipe" class="arena-input sem-caixa pequeno" required></select>
@@ -208,6 +213,45 @@
         <table class="arena-tabela pequena"><thead><tr><th>Código</th><th>Ação</th><th>Validação</th></tr></thead><tbody id="previa-importacao"></tbody></table>
         <div class="arena-form-linha"><button id="confirmar-importacao" class="arena-primario" type="button">Confirmar importação</button></div>
         <p id="resultado-importacao" class="arena-aviso"></p>
+      </div>
+    </dialog>
+
+    <dialog id="dialogo-alunos" class="arena-dialogo" aria-labelledby="titulo-alunos">
+      <header><strong id="titulo-alunos">Importar alunos</strong><button id="fechar-alunos" class="arena-link" type="button">Fechar</button></header>
+      <div class="arena-dialogo-corpo arena-turmas">
+        <p class="arena-aviso">Uma linha por aluno, com nome e semestre (ou fase); e-mail opcional. Aceita CSV com ou sem cabeçalho
+          (<code>Nome;Fase;E-mail</code>) ou linhas coladas como <code>Ana Souza, 2</code> ou <code>Bruno Lima (6º)</code>.
+          Os alunos entram <strong>sem equipe</strong>.</p>
+        <div class="arena-form-linha">
+          <label class="arena-secundario arena-arquivo">Escolher arquivo CSV…<input id="alunos-arquivo" type="file" accept=".csv,.txt,text/csv,text/plain" /></label>
+          <span id="alunos-arquivo-nome" class="arena-aviso"></span>
+        </div>
+        <label class="arena-rotulo" for="alunos-texto">Ou cole a listagem</label>
+        <textarea id="alunos-texto" class="arena-input sem-caixa pequeno arena-turmas-texto" rows="7" spellcheck="false"
+          placeholder="Ana Souza, 2&#10;Bruno Lima (6º)&#10;Carla Dias;4"></textarea>
+        <div class="arena-form-linha"><button id="previa-alunos" class="arena-secundario" type="button">Pré-visualizar</button></div>
+        <div id="previa-alunos-resultado" aria-live="polite"></div>
+        <div class="arena-form-linha"><button id="confirmar-alunos" class="arena-primario hidden" type="button">Confirmar importação</button></div>
+        <p id="resultado-alunos" class="arena-aviso"></p>
+      </div>
+    </dialog>
+
+    <dialog id="dialogo-montar" class="arena-dialogo largo" aria-labelledby="titulo-montar">
+      <header><strong id="titulo-montar">Montar equipes</strong><button id="fechar-montar" class="arena-link" type="button">Fechar</button></header>
+      <div class="arena-dialogo-corpo arena-turmas">
+        <p class="arena-aviso">Só os alunos <strong>sem equipe</strong> entram, em equipes novas; as equipes existentes não mudam.
+          Cada semestre é espalhado entre as equipes, começando pelo 6º, e os tamanhos diferem em no máximo 1.</p>
+        <div class="arena-form-linha">
+          <label class="arena-rotulo">Alunos por equipe
+            <input id="montar-tamanho" class="arena-input sem-caixa pequeno curto" type="number" min="2" max="10" value="5" /></label>
+          <span id="montar-resumo" class="arena-aviso"></span>
+        </div>
+        <div class="arena-form-linha">
+          <button id="previa-montar" class="arena-secundario" type="button">Pré-visualizar</button>
+          <button id="confirmar-montar" class="arena-primario hidden" type="button">Confirmar equipes</button>
+        </div>
+        <div id="previa-montar-resultado" class="arena-turmas-grade" aria-live="polite"></div>
+        <p id="resultado-montar" class="arena-aviso"></p>
       </div>
     </dialog>
 
