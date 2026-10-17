@@ -9,6 +9,7 @@ import { carregarDesafioDaURL, desafioAtual } from "./engine/desafios.js";
 import { renderDesafio, parseTestLine } from "./ui/instructions.js";
 import { setupToolbar } from "./ui/toolbar.js";
 import { setupAjuda } from "./arena/ajuda.js";
+import { setupAtalhos } from "./arena/atalhos.js";
 import cartaoDialeto from "./arena/cartao.js";
 import { setupLayout } from "./ui/layout.js";
 import { setupSubmissao } from "./arena/submissao.js";
@@ -79,6 +80,7 @@ const view = new EditorView({
 
 setupToolbar(view, term, themeConfig);
 setupAjuda(view, cartaoDialeto);
+setupAtalhos(); // Arena: Ctrl+Enter / Ctrl+Shift+Enter. Antes do setupSubmissao, que põe "Submissões fechadas"
 
 // Arena: troca de tema (botão da IDE ou outra aba) reconfigura editor e terminal sem perder código nem histórico.
 window.addEventListener("arena:tema", (ev) => {

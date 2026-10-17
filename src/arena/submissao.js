@@ -109,8 +109,20 @@ export function setupSubmissao(view, desafio) {
     return [...lista.querySelectorAll("input:checked")].map((i) => i.value);
   }
 
-  btn.addEventListener("click", () => modal.classList.remove("hidden"));
-  document.getElementById("close-submit-btn").addEventListener("click", () => modal.classList.add("hidden"));
+  // Abrir (clique ou Ctrl+Shift+Enter, atalhos.js) põe o foco no primeiro participante; Esc e o x fecham
+  // e devolvem o foco ao editor, para ninguém digitar no código por trás do modal.
+  const fecharModal = () => {
+    modal.classList.add("hidden");
+    view.focus();
+  };
+  btn.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+    lista.querySelector("input")?.focus();
+  });
+  document.getElementById("close-submit-btn").addEventListener("click", fecharModal);
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !modal.classList.contains("hidden")) fecharModal();
+  });
 
   confirmar.addEventListener("click", async () => {
     const participantes = participantesMarcados();

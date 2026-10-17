@@ -136,6 +136,7 @@ x <- conta.pegar("a", 0)   // valor da chave, ou 0 se ela não existe
   exemplos e os testes extras.
 - Exemplo reprovado no Rodar: a aba Missão mostra a entrada, o esperado e o obtido com o tipo (`"5"` é cadeia,
   `5` é inteiro) e destaca a diferença. Espaço aparece como `·` e quebra de linha como `↵`.
+- Atalhos: `Ctrl+Enter` roda e `Ctrl+Shift+Enter` abre o Submeter (no Mac, `⌘` no lugar de `Ctrl`).
 - O juiz confere o que a função **devolve** (`retorne`). O que vai para o `escreva` é ignorado.
 - **Não use `leia`:** ninguém digita nada durante os testes.
 - Cada teste tem **1 segundo**. Um laço que não termina reprova o teste.
