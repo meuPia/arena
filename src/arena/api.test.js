@@ -20,3 +20,7 @@ test("modo ensaio e sem janela", () => {
   assert.equal(textoRelogio({ ...jan, ensaio: true }, 0).rotulo, "modo ensaio");
   assert.equal(textoRelogio(null, 0).valor, "--:--");
 });
+
+test("modo offline", () => {
+  assert.equal(textoRelogio({ ...jan, ensaio: true, offline: true }, 0).rotulo, "modo offline");
+});

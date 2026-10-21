@@ -224,7 +224,14 @@ def _ts(iso):
 
 
 def modo_ensaio():
-    return os.environ.get("ARENA_MODO", "").lower() == "ensaio"
+    """Ignora o horário. O modo offline também (o tempo é controlado na sala)."""
+    return os.environ.get("ARENA_MODO", "").lower() in ("ensaio", "offline")
+
+
+def modo_offline():
+    """Arena instalada em cada máquina do laboratório: sem login, sem submissão, todos os níveis abertos.
+    As equipes salvam o .por e a banca pontua com scripts/pontuar_equipe.py."""
+    return os.environ.get("ARENA_MODO", "").lower() == "offline"
 
 
 def janela(cfg=None, agora=None):
@@ -242,7 +249,7 @@ def janela(cfg=None, agora=None):
     else:
         situacao = "encerrada"
     return {"situacao": situacao, "inicio": inicio, "fim": fim, "freeze": freeze,
-            "agora": agora, "ensaio": modo_ensaio()}
+            "agora": agora, "ensaio": modo_ensaio(), "offline": modo_offline()}
 
 
 # ---------------- regras ----------------
@@ -315,6 +322,8 @@ def contagem_desbloqueio(melhores_eq, todos, cfg):
 
 
 def nivel_liberado(nivel, contagem, cfg):
+    if modo_offline():
+        return True
     req = cfg["desbloqueio"].get(nivel, {})
     return all(contagem.get(n, 0) >= q for n, q in req.items())
 

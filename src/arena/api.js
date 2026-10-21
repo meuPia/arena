@@ -81,6 +81,7 @@ export function formatarRelogio(segundos) {
 // Relógio do evento a partir da janela do servidor ({inicio, fim, ensaio} em segundos) e do "agora" do servidor.
 export function textoRelogio(janela, agora) {
   if (!janela) return { valor: "--:--", rotulo: "" };
+  if (janela.offline) return { valor: "∞", rotulo: "modo offline" }; // o tempo é controlado na sala
   if (janela.ensaio) return { valor: "∞", rotulo: "modo ensaio" };
   if (agora < janela.inicio) return { valor: formatarRelogio(janela.inicio - agora), rotulo: "para abrir" };
   if (agora <= janela.fim) return { valor: formatarRelogio(janela.fim - agora), rotulo: "restante" };

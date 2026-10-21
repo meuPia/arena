@@ -32,7 +32,13 @@ def _resumo(r):
     return None if r is None else {"pontos": r["pontos"], "completo": r["completo"], "caracteres": r["caracteres"]}
 
 
+# No modo offline não há login: o painel e a IDE são da máquina, não de uma equipe.
+EQUIPE_LOCAL = {"id": "local", "nome": "Modo offline", "integrantes": []}
+
+
 def _equipe(eid, db=None):
+    if eid is None and arena.modo_offline():
+        return EQUIPE_LOCAL
     e = arena.equipes(db).get(eid)
     if not e:
         raise Erro(401, "Equipe não encontrada. Entre novamente.")
@@ -83,8 +89,8 @@ def missoes(eid, db=None):
         })
     pontos = sum(r["pontos"] for c, r in melhores.items() if c in todos)
     return {
-        "evento": cfg["evento"], "janela": jan,
-        "equipe": {"id": eid, "nome": e["nome"], "integrantes": e.get("integrantes", []), "pontos": pontos},
+        "evento": cfg["evento"], "janela": jan, "offline": arena.modo_offline(),
+        "equipe": {"id": e["id"], "nome": e["nome"], "integrantes": e.get("integrantes", []), "pontos": pontos},
         "niveis": niveis,
     }
 
@@ -113,11 +119,14 @@ def missao(eid, codigo, db=None):
         "integrantes": e.get("integrantes", []),
         "situacao": jan["situacao"],
         "janela": jan,
+        "offline": arena.modo_offline(),
     })
     return out
 
 
 def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
+    if arena.modo_offline():
+        raise Erro(403, "No modo offline não há submissão: salve o arquivo .por e entregue à banca.")
     db = db or store.abrir()
     agora = agora if agora is not None else time.time()
     e = _equipe(eid, db)
@@ -142,6 +151,29 @@ def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
         return {"status": "cooldown", "espera": espera,
                 "mensagem": f"Aguarde {espera} s para submeter este módulo novamente."}
 
+    return _julgar_e_registrar(db, e, d, fonte, participantes, cfg, agora, aceitas)
+
+
+def pontuar(eid, codigo, fonte, db=None, agora=None):
+    """Julga um .por entregue no modo offline (scripts/pontuar_equipe.py) e registra como uma submissão:
+    mesmos juiz, pontos e melhor; sem janela de horário, desbloqueio, cooldown nem participantes.
+    `agora` = horário do arquivo (desempate do placar)."""
+    db = db or store.abrir()
+    agora = agora if agora is not None else time.time()
+    e = arena.equipes(db).get(eid)
+    if not e:
+        raise Erro(404, "Equipe não encontrada.")
+    cfg, todos = arena.config(db), arena.desafios(db)
+    d = todos.get(codigo)
+    if not d:
+        raise Erro(404, f"Desafio {codigo} não encontrado.")
+    if not isinstance(fonte, str) or not fonte.strip():
+        raise Erro(400, "Código vazio.")
+    return _julgar_e_registrar(db, e, d, fonte, ["entrega offline"], cfg, agora, _aceitas(db, eid))
+
+
+def _julgar_e_registrar(db, e, d, fonte, participantes, cfg, agora, aceitas):
+    eid, codigo = e["id"], d["codigo"]
     seg = arena.segredos(db, codigo)
     if not seg or not seg.get("testesExtras", "").strip():
         # Sem bateria extra o juiz daria "completo" com 0 de 0: nunca julgar assim.

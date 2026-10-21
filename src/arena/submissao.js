@@ -1,6 +1,7 @@
 // Botão Submeter da IDE: escolhe participantes, envia ao juiz e mostra o veredito.
 import { api, escapar, formatarRelogio, textoRelogio } from "./api.js";
 import { marcarErroCompilacao, limparErroCompilacao } from "../editor/meupia-lang.js";
+import { comCabecalho, nomeArquivo } from "./entrega.js";
 
 const fracao = (b) => `${b.aprovados}/${b.total}`;
 const MOTIVO_EXEMPLO = {
@@ -18,6 +19,37 @@ const MENSAGENS = {
   erro_execucao: (r) => `💥 ${r.mensagem}`,
   cooldown: (r) => `⏳ ${r.mensagem}`,
 };
+
+function baixar(nome, texto) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([texto], { type: "text/plain;charset=utf-8" }));
+  link.download = nome;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function setupSalvarOffline(btn, view, desafio) {
+  const nome = nomeArquivo(desafio.codigo);
+  btn.disabled = false;
+  btn.innerHTML = `<i data-lucide="save"></i> Salvar .por`;
+  btn.title = `Salva ${nome} para entregar à banca (Ctrl+Shift+Enter)`;
+  btn.addEventListener("click", () => {
+    baixar(nome, comCabecalho(view.state.doc.toString(), desafio.codigo));
+    let box = document.getElementById("arena-veredito");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "arena-veredito";
+      document.querySelector(".desafio-instrucoes")?.before(box);
+    }
+    box.className = "arena-veredito success";
+    box.textContent = `💾 ${nome} salvo às ${new Date().toLocaleTimeString("pt-BR")}. `
+      + "Salve de novo a cada melhoria: a banca pontua o arquivo mais recente de cada missão.";
+    view.focus();
+  });
+  if (window.lucide) window.lucide.createIcons();
+}
 
 // "Melhor: 7/10 pts" (+ selo de completo e caracteres)
 function textoMelhor(melhor, pontosModulo) {
@@ -72,10 +104,13 @@ export function setupSubmissao(view, desafio) {
     const el = document.getElementById("arena-status-missao");
     if (!el) return;
     const m = desafio.melhor;
-    el.textContent = (m ? `Melhor: ${m.pontos}/${desafio.pontos} pts${m.completo ? " ✅" : ""} · ` : "")
-      + `Tentativas: ${desafio.tentativas}`;
+    el.textContent = desafio.offline ? "💾 entrega pelo arquivo .por"
+      : (m ? `Melhor: ${m.pontos}/${desafio.pontos} pts${m.completo ? " ✅" : ""} · ` : "")
+        + `Tentativas: ${desafio.tentativas}`;
   }
   atualizarStatus();
+
+  if (desafio.offline) return setupSalvarOffline(btn, view, desafio);
 
   function iniciarEspera(segundos) {
     fimEspera = Date.now() + segundos * 1000;

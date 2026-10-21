@@ -11,7 +11,8 @@
     "test:js": "node --test 'src/**/*.test.js'",
     "test:py": "python3 -m pytest -q tests",
     "validar": "python3 scripts/validar_desafios.py",
-    "local": "npm run build && ARENA_MODO=ensaio ADMIN_TOKEN=admin python3 scripts/servidor_local.py"
+    "local": "npm run build && ARENA_MODO=ensaio ADMIN_TOKEN=admin python3 scripts/servidor_local.py",
+    "offline": "npm run build && python3 scripts/iniciar_offline.py"
   },
   "devDependencies": {
     "vite": "^8.3.3"

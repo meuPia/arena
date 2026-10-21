@@ -48,6 +48,25 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/copiar_supabase.p
 ARENA_SQLITE=~/arena.sqlite3 npm run local
 ```
 
+## Evento offline
+
+Para rodar sem internet nem Vercel, a arena é instalada em cada máquina (`ARENA_MODO=offline`): sem login e sem
+submissão, as equipes resolvem na IDE (Rodar = testes de exemplo) e salvam cada missão com **Salvar .por**. A banca
+recolhe os arquivos e pontua cada equipe numa máquina com o banco completo (testes extras).
+
+```bash
+# uma vez, numa máquina com internet
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/copiar_supabase.py offline/arena.sqlite3 --publico   # equipes
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/copiar_supabase.py ~/banca.sqlite3                     # banca
+
+# cada máquina das equipes (com offline/arena.sqlite3 e o build)
+python scripts/iniciar_offline.py
+
+# máquina da banca
+ARENA_SQLITE=~/banca.sqlite3 python3 scripts/pontuar_equipe.py "Nome da equipe" pasta-da-equipe/
+ARENA_SQLITE=~/banca.sqlite3 python3 scripts/iniciar_offline.py --banca   # placar em /placar.html
+```
+
 ## Estrutura de operação
 
 A plataforma foi pensada para dois contextos principais:
@@ -105,7 +124,7 @@ Para ligar um provedor, registre um app OAuth com a URL de retorno `https://<dom
 | `ARENA_ROOT` | JSON com as identidades do root, ex.: `{"google": "voce@gmail.com", "microsoft": "voce@exemplo.edu", "github": "seu-login"}`. Só na Vercel/`.env.local` |
 | `ARENA_URL` | opcional: origem fixa usada na URL de retorno (padrão: o host da requisição) |
 
-O `npm run local` lê do `.env.local` só essas variáveis (nunca as do banco).
+O `npm run local` lê do `.env.local` só essas variáveis, mais `ARENA_MODO` e `ARENA_SQLITE` do modo offline (nunca as do banco). O `.env.local` tem segredos: não o copie para as máquinas do laboratório.
 
 **Colocando o painel no ar (migração):**
 

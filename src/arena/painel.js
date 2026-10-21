@@ -6,6 +6,7 @@ const SUBTITULO = {
 };
 
 let janela = null;
+let offline = false; // modo offline: sem login, sem submissão (as equipes salvam o .por)
 let deslocamentoRelogio = 0; // servidor - cliente (s)
 
 function icones() { if (window.lucide) window.lucide.createIcons(); }
@@ -59,7 +60,7 @@ function renderNivel(n) {
           <span class="arena-tecnico">${escapar(m.problemaTecnico)}</span></span>
         <span class="arena-barra" aria-hidden="true"><span style="width: ${pct}%"></span></span>
         <span class="arena-rodape-card">
-          <span>${m.tentativas ? `${m.tentativas} tentativa(s)` : "sem tentativas"}</span>
+          <span>${offline ? "salve o .por na IDE" : m.tentativas ? `${m.tentativas} tentativa(s)` : "sem tentativas"}</span>
           <span class="arena-pts">${pts}${m.completo ? " ✅" : ""}</span>
         </span>
       </a>`;
@@ -97,6 +98,7 @@ async function carregarPainel() {
     return;
   }
   janela = p.janela;
+  offline = Boolean(p.offline);
   deslocamentoRelogio = p.janela.agora - Date.now() / 1000;
 
   $("tela-login").classList.add("hidden");
@@ -104,20 +106,24 @@ async function carregarPainel() {
   $("evento-nome").textContent = p.evento;
   $("equipe-nome").textContent = p.equipe.nome;
   $("topo-equipe").textContent = p.equipe.nome;
-  $("kpi-pontos").textContent = p.equipe.pontos;
+  $("kpi-pontos").textContent = offline ? "—" : p.equipe.pontos;
+  $("btn-sair").classList.toggle("hidden", offline);
 
   const sit = {
     antes: "🕖 A Code Arena ainda não abriu. As missões aparecem aqui no horário de início.",
     aberta: "🟢 EM ANDAMENTO — escolha um módulo para recuperar.",
     encerrada: "🏁 Submissões encerradas. Aguarde o resultado.",
   };
-  $("situacao").textContent = (p.janela.ensaio ? "🧪 MODO ENSAIO · " : "") + sit[p.janela.situacao];
+  $("situacao").textContent = offline
+    ? "💾 MODO OFFLINE — resolva na IDE e salve cada missão com o botão Salvar .por. A banca pontua os arquivos."
+    : (p.janela.ensaio ? "🧪 MODO ENSAIO · " : "") + sit[p.janela.situacao];
   $("niveis").innerHTML = p.niveis.map(renderNivel).join("");
   renderProgresso(p.niveis);
   atualizarRelogio();
   icones();
 }
 
-if (sessao()) carregarPainel(); else mostrarLogin();
+// Sem sessão também pergunta ao servidor: no modo offline ele responde sem login (senão, 401 → tela de login).
+carregarPainel();
 setInterval(atualizarRelogio, 1000);
-setInterval(() => { if (sessao()) carregarPainel(); }, 30000);
+setInterval(() => { if (sessao() || offline) carregarPainel(); }, 30000);

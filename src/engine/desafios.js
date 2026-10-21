@@ -1,16 +1,16 @@
-import { api, sessao, lerRascunho } from "../arena/api.js";
+import { api, lerRascunho } from "../arena/api.js";
 
 export let desafioAtual = null;
 
 /**
  * Code Arena: lê ?desafio=B01 e busca a missão na API (só vem se o nível estiver liberado).
  * O formato devolvido é o mesmo que o motor do Lab espera (codigoTeste = testes PÚBLICOS).
- * Sem sessão ou sem desafio, volta para o painel.
+ * Sem desafio ou sem sessão (401), volta para o painel. No modo offline o servidor responde sem sessão.
  */
 export async function carregarDesafioDaURL() {
     const codigo = (new URLSearchParams(window.location.search).get("desafio") || "").toUpperCase();
 
-    if (!sessao() || !codigo) {
+    if (!codigo) {
         window.location.replace("/");
         return false;
     }
@@ -25,7 +25,7 @@ export async function carregarDesafioDaURL() {
         };
         return true;
     } catch (erro) {
-        alert(erro.message);
+        if (erro.status !== 401) alert(erro.message);
         window.location.replace("/");
         return false;
     }
