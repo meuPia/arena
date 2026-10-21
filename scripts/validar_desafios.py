@@ -1,6 +1,6 @@
 """Confere com o juiz real os desafios do banco configurado (store.abrir()).
 
-Com SUPABASE_* (ou Upstash) valida os desafios do evento; sem banco (store Local vazio), valida os
+Com SUPABASE_* (ou Upstash) valida os desafios do evento; sem banco (SQLite local sem desafios), valida os
 exemplos de arena/exemplos. Critérios em api/_lib/validacao.py.
 Uso: python scripts/validar_desafios.py
 """

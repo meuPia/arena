@@ -3,7 +3,9 @@
 Uso:
   npm run build
   ARENA_MODO=ensaio python scripts/servidor_local.py        # http://localhost:8787
-Sem KV_REST_API_URL, os dados ficam em /tmp/meupia-arena.json.
+Sem banco remoto, os dados ficam no SQLite em ARENA_SQLITE (padrão: /tmp/meupia-arena.sqlite3);
+scripts/copiar_supabase.py copia o banco do evento para ele.
+ARENA_DIST troca a pasta servida (o pacote offline usa offline/dist).
 
 Do .env.local, só as variáveis do login da banca (OAUTH_*, ARENA_ROOT, ARENA_URL) são lidas.
 As do banco (SUPABASE_*, KV_*) ficam de fora de propósito: o servidor local nunca grava no
@@ -17,7 +19,7 @@ from urllib.parse import urlparse
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = os.path.join(RAIZ, "api")
-DIST = os.path.join(RAIZ, "dist")
+DIST = os.path.abspath(os.environ.get("ARENA_DIST") or os.path.join(RAIZ, "dist"))
 sys.path.insert(0, API)
 
 _handlers = {}

@@ -41,7 +41,12 @@ npm test
 npm run local
 ```
 
-Por padrão, sem banco configurado, a arena pode usar desafios de exemplo para desenvolvimento e testes locais.
+Sem banco remoto configurado, a arena grava num arquivo **SQLite** (`ARENA_SQLITE`, padrão `/tmp/meupia-arena.sqlite3`) e, enquanto ele não tiver desafios, usa os desafios de exemplo. Para rodar o evento num servidor próprio com os dados do Supabase:
+
+```bash
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/copiar_supabase.py ~/arena.sqlite3
+ARENA_SQLITE=~/arena.sqlite3 npm run local
+```
 
 ## Estrutura de operação
 

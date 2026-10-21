@@ -18,7 +18,7 @@ JUIZ = {"nome": "Juiz", "papel": "juiz", "root": False, "provedor": "google"}
 def db(tmp_path, monkeypatch):
     for v in ("SUPABASE_URL", "KV_REST_API_URL", "UPSTASH_REDIS_REST_URL", "ARENA_EQUIPES", "ARENA_ROOT"):
         monkeypatch.delenv(v, raising=False)  # testes nunca gravam no banco real
-    monkeypatch.setenv("ARENA_ARQUIVO_LOCAL", str(tmp_path / "db.json"))
+    monkeypatch.setenv("ARENA_SQLITE", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("ARENA_MODO", "ensaio")
     arena.limpar_cache()
     yield store.abrir()

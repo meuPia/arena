@@ -25,7 +25,7 @@ def db(tmp_path, monkeypatch):
     monkeypatch.delenv("KV_REST_API_URL", raising=False)
     monkeypatch.delenv("UPSTASH_REDIS_REST_URL", raising=False)
     monkeypatch.delenv("SUPABASE_URL", raising=False)  # testes nunca gravam no banco real
-    monkeypatch.setenv("ARENA_ARQUIVO_LOCAL", str(tmp_path / "db.json"))
+    monkeypatch.setenv("ARENA_SQLITE", str(tmp_path / "db.sqlite3"))
     arena.limpar_cache()
     yield store.abrir()
     arena.limpar_cache()

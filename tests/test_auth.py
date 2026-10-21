@@ -22,7 +22,7 @@ ROOT = {"google": "root@exemplo.com", "github": "root-exemplo"}
 def db(tmp_path, monkeypatch):
     for v in ("SUPABASE_URL", "KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
         monkeypatch.delenv(v, raising=False)  # testes nunca gravam no banco real
-    monkeypatch.setenv("ARENA_ARQUIVO_LOCAL", str(tmp_path / "db.json"))
+    monkeypatch.setenv("ARENA_SQLITE", str(tmp_path / "db.sqlite3"))
     monkeypatch.setenv("ARENA_MODO", "ensaio")
     monkeypatch.setenv("OAUTH_GOOGLE_ID", "cid-google")
     monkeypatch.setenv("OAUTH_GOOGLE_SECRET", "seg-google")

@@ -90,8 +90,8 @@ def _exemplos():
 
 
 def _usa_exemplos(db):
-    # Só no desenvolvimento/testes. Com Supabase ou Upstash, banco vazio = arena sem missões.
-    return isinstance(db, store.Local)
+    # Só com o SQLite local e sem desafios no banco. Com Supabase ou Upstash, banco vazio = arena sem missões.
+    return isinstance(db, store.Sqlite)
 
 
 def limpar_cache():
