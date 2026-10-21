@@ -2,6 +2,7 @@
 
   python scripts/iniciar_offline.py              # http://localhost:8787
   python scripts/iniciar_offline.py --banca      # máquina da banca: placar e painel com as entregas pontuadas
+  python scripts/iniciar_offline.py --abrir      # abre o navegador quando o servidor responder (versão portátil)
 
 Sem login e sem submissão: as equipes resolvem na IDE (Rodar = testes de exemplo) e salvam cada missão com
 "Salvar .por". O banco é o SQLite em ARENA_SQLITE (shell ou .env.local; padrão offline/arena.sqlite3):
@@ -10,8 +11,11 @@ Sem login e sem submissão: as equipes resolvem na IDE (Rodar = testes de exempl
 Serve o build mais novo entre offline/dist (sem internet, scripts/preparar_offline.py) e dist/ (npm run build).
 """
 import os
+import socket
 import subprocess
 import sys
+import time
+import webbrowser
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,10 +40,11 @@ def main(args):
         sys.exit("sem build: rode `npm run build` (ou scripts/preparar_offline.py) antes")
     dist = max(builds, key=lambda d: os.path.getmtime(os.path.join(d, "index.html")))
     os.environ["ARENA_DIST"] = dist
-    if os.path.basename(dist) == "dist" and os.path.dirname(dist) == RAIZ:
-        print("build: dist/ (a IDE baixa o Pyodide da internet; sem internet, rode scripts/preparar_offline.py)")
+    if os.path.exists(os.path.join(dist, "vendor", "pyodide", "pyodide.js")):
+        print(f"build: {os.path.relpath(dist, RAIZ)} (sem internet)")
     else:
-        print("build: offline/dist (sem internet)")
+        print(f"build: {os.path.relpath(dist, RAIZ)} (a IDE baixa o Pyodide da internet; sem internet, rode "
+              "scripts/preparar_offline.py)")
 
     sys.path.insert(0, os.path.join(RAIZ, "api"))
     from _lib import arena, store
@@ -52,7 +57,26 @@ def main(args):
               f"({len(arena._exemplos())}). Copie o banco com scripts/copiar_supabase.py --publico.")
     if segredos and "--banca" not in args:
         print("ATENÇÃO: este banco tem testes extras e gabaritos. Nas máquinas das equipes use a cópia --publico.")
-    subprocess.run([sys.executable, os.path.join(RAIZ, "scripts", "servidor_local.py")], check=False)
+    servidor = subprocess.Popen([sys.executable, os.path.join(RAIZ, "scripts", "servidor_local.py")])
+    if "--abrir" in args:
+        abrir_quando_pronto(servidor, int(os.environ.get("PORTA", "8787")))
+    servidor.wait()
+
+
+def abrir_quando_pronto(servidor, porta):
+    for _ in range(100):
+        if servidor.poll() is not None:
+            print("o servidor não subiu (porta ocupada? feche a outra janela da Arena e tente de novo)")
+            return
+        try:
+            socket.create_connection(("127.0.0.1", porta), timeout=0.2).close()
+        except OSError:
+            time.sleep(0.1)
+            continue
+        url = f"http://localhost:{porta}/"
+        print(f"\nArena aberta no navegador: {url}  (mantenha esta janela aberta; para sair, feche-a)\n")
+        webbrowser.open(url)
+        return
 
 
 if __name__ == "__main__":

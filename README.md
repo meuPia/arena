@@ -62,6 +62,9 @@ SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 scripts/copiar_supabase.p
 # cada máquina das equipes (com offline/arena.sqlite3 e o build)
 python scripts/iniciar_offline.py
 
+# ou: versão portátil para pendrive (Windows, sem instalar nada) -> INICIAR.bat
+python3 scripts/preparar_offline.py --sem-wsl && python3 scripts/preparar_portatil.py
+
 # máquina da banca
 ARENA_SQLITE=~/banca.sqlite3 python3 scripts/pontuar_equipe.py "Nome da equipe" pasta-da-equipe/
 ARENA_SQLITE=~/banca.sqlite3 python3 scripts/iniciar_offline.py --banca   # placar em /placar.html
