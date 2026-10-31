@@ -1,4 +1,4 @@
-"""Contrato do armazenamento: Local sempre; Supabase real só com ARENA_TESTE_SUPABASE=1.
+"""Contrato do armazenamento: SQLite sempre; Supabase real só com ARENA_TESTE_SUPABASE=1.
 
 Para rodar contra o Supabase (usa chaves com prefixo aleatório e apaga tudo no final):
   ARENA_TESTE_SUPABASE=1 SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... python3 -m pytest -q tests/test_store.py
@@ -19,10 +19,10 @@ SUPABASE_REAL = (os.environ.get("ARENA_TESTE_SUPABASE") == "1" and os.environ.ge
                  and (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_SECRET_KEY")))
 
 
-@pytest.fixture(params=["local", "supabase"])
+@pytest.fixture(params=["sqlite", "supabase"])
 def banco(request, tmp_path):
-    if request.param == "local":
-        yield store.Local(str(tmp_path / "db.json")), "t"
+    if request.param == "sqlite":
+        yield store.Sqlite(str(tmp_path / "db.sqlite3")), "t"
         return
     if not SUPABASE_REAL:
         pytest.skip("defina ARENA_TESTE_SUPABASE=1 e as variáveis do Supabase para testar o banco real")
@@ -89,7 +89,55 @@ def test_apagar(banco):
     assert db.hgetall(f"{p}:x") == {"a": "1"}
 
 
+# ---------------- SQLite ----------------
+
+def test_sqlite_persiste_e_so_o_dono_le(tmp_path):
+    caminho = str(tmp_path / "sub" / "db.sqlite3")
+    store.Sqlite(caminho).hset("k", "a", 1)
+    assert store.Sqlite(caminho).hgetall("k") == {"a": "1"}
+    assert os.stat(caminho).st_mode & 0o077 == 0
+
+
+def test_sqlite_carregar(tmp_path):
+    db = store.Sqlite(str(tmp_path / "db.sqlite3"))
+    assert db.vazio()
+    db.carregar([("h", "a", "1"), ("h", "b", "2")], [("l", "antigo"), ("l", "novo")])
+    assert not db.vazio()
+    assert db.hgetall("h") == {"a": "1", "b": "2"}
+    assert db.lrange("l", 0, -1) == ["novo", "antigo"]
+    db.carregar([("h", "c", "3")], [], substituir=True)
+    assert db.hgetall("h") == {"c": "3"} and db.lrange("l", 0, -1) == []
+
+
+def test_abrir_sem_banco_usa_sqlite(monkeypatch, tmp_path):
+    for nome in ("SUPABASE_URL", "KV_REST_API_URL", "UPSTASH_REDIS_REST_URL", "VERCEL_ENV"):
+        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setenv("ARENA_SQLITE", str(tmp_path / "x.sqlite3"))
+    assert isinstance(store.abrir(), store.Sqlite)
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    with pytest.raises(RuntimeError):
+        store.abrir()
+
+
 # ---------------- SupabaseRest sem rede ----------------
+
+def test_supabase_tudo_pagina(monkeypatch):
+    db = store.SupabaseRest("https://exemplo.supabase.co/", "sb_secret_x")
+    db.PAGINA = 2
+    tabelas = {"arena_hash": [{"chave": "h", "campo": str(i), "valor": str(i)} for i in range(3)],
+               "arena_lista": [{"chave": "l", "valor": str(i)} for i in range(4)]}
+    ordens = {}
+
+    def falso(metodo, caminho, filtros=None, corpo=None, prefer=None):
+        ordens[caminho] = filtros["order"]
+        return tabelas[caminho][filtros["offset"]:filtros["offset"] + filtros["limit"]]
+
+    monkeypatch.setattr(db, "_req", falso)
+    hashes, listas = db.tudo()
+    assert hashes == [("h", "0", "0"), ("h", "1", "1"), ("h", "2", "2")]
+    assert listas == [("l", "0"), ("l", "1"), ("l", "2"), ("l", "3")]
+    assert ordens["arena_lista"] == "id.asc"
+
 
 def test_supabase_lrange_pagina_e_monta_pedidos(monkeypatch):
     db = store.SupabaseRest("https://exemplo.supabase.co/", "sb_secret_x")

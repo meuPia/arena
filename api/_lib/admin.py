@@ -11,7 +11,7 @@ from datetime import datetime
 
 import hashlib
 
-from . import arena, auth, conteudo, servico, store, turmas, validacao
+from . import arena, auth, conteudo, entregas, servico, store, turmas, validacao
 from .web import Erro
 
 PERMISSOES = {
@@ -30,6 +30,8 @@ PERMISSOES = {
     "validar_todos": "admin", "exportar_desafios": "admin", "importar_desafios": "admin",
     # horário do evento: juiz vê, admin altera
     "evento": "juiz", "salvar_evento": "admin",
+    # modo offline: a banca pontua os .por que as equipes salvaram
+    "pontuar_entregas": "juiz",
 }
 # Únicas ações aceitas por GET: não gravam nada (nem auditoria). O resto é só POST, que exige JSON e mesma
 # origem (web.Base); assim um link malicioso aberto por alguém da banca logada não altera dados (CSRF).
@@ -592,6 +594,63 @@ def _salvar_evento(autor, dados, db):
     return {"ok": True, "inicio": iso, "origem": "banco"}
 
 
+MAX_ENTREGAS = 60
+
+
+def _pontuar_entregas(autor, dados, db):
+    """Modo offline: julga os .por de uma equipe (juiz real, testes de exemplo + extras) e grava como submissões.
+    dados = {equipe: id, arquivos: [{nome, texto, modificado (ms, do navegador)}], limpar: bool}."""
+    if not arena.modo_offline():
+        raise Erro(403, "A pontuação de arquivos .por só existe no modo offline.")
+    e = arena.equipes(db).get(str(dados.get("equipe") or ""))
+    if not e:
+        raise Erro(404, "Escolha a equipe.")
+    arquivos = dados.get("arquivos") or []
+    if not isinstance(arquivos, list) or not arquivos:
+        raise Erro(400, "Envie ao menos um arquivo .por.")
+    if len(arquivos) > MAX_ENTREGAS:
+        raise Erro(400, f"No máximo {MAX_ENTREGAS} arquivos por vez.")
+    itens = []
+    for a in arquivos:
+        if not isinstance(a, dict) or not isinstance(a.get("texto"), str):
+            raise Erro(400, "Arquivo inválido.")
+        try:
+            modificado = float(a.get("modificado") or 0) / 1000
+        except (TypeError, ValueError):
+            modificado = 0
+        itens.append((str(a.get("nome") or "sem nome")[:120], a["texto"], modificado or time.time()))
+    escolhidos, avisos = entregas.escolher(itens)
+    for cod, (_, texto, _) in sorted(escolhidos.items()):
+        eq = entregas.equipe(texto)
+        if eq and not entregas.mesma_equipe(eq, e["nome"]):
+            avisos.append(f'{cod}: o arquivo diz equipe "{eq}" (pontuado para {e["nome"]})')
+    if not escolhidos:
+        raise Erro(400, "Nenhum arquivo com o código do desafio (1ª linha `// arena: B01` ou nome B01.por).")
+
+    eid = e["id"]
+    if dados.get("limpar"):
+        db.apagar(store.k_aceitas(eid), store.k_tentativas(eid), store.k_ultima(eid))
+    todos = arena.desafios(db)
+    resultados = []
+    for cod in sorted(escolhidos):
+        nome, texto, modificado = escolhidos[cod]
+        base = {"codigo": cod, "arquivo": nome}
+        if cod not in todos:
+            resultados.append({**base, "status": "inexistente", "mensagem": "Desafio inexistente."})
+            continue
+        try:
+            r = servico.pontuar(eid, cod, texto, db=db, agora=modificado)
+        except Erro as erro:
+            resultados.append({**base, "status": "erro", "mensagem": erro.mensagem})
+            continue
+        resultados.append({**base, **{k: r.get(k) for k in ("status", "exemplos", "extras", "pontos", "pontosModulo",
+                                                              "completo", "caracteres", "mensagem", "melhor")}})
+    total = next((l["pontos"] for l in servico.placar(admin=True, db=db)["linhas"] if l["id"] == eid), 0)
+    auditar(db, autor, "pontuar_entregas", e["nome"],
+            ("limpou antes · " if dados.get("limpar") else "") + " ".join(sorted(escolhidos)) + f" · total {total}")
+    return {"equipe": e["nome"], "resultados": resultados, "avisos": avisos, "total": total}
+
+
 _ACOES = {
     "placar": _placar, "submissoes": _submissoes, "submissao": _submissao,
     "perfis": _perfis, "auditoria": _auditoria,
@@ -606,4 +665,5 @@ _ACOES = {
     "validar_desafio": _validar_desafio, "validar_todos": _validar_todos,
     "exportar_desafios": _exportar_desafios, "importar_desafios": _importar_desafios,
     "evento": _evento, "salvar_evento": _salvar_evento,
+    "pontuar_entregas": _pontuar_entregas,
 }

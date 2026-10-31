@@ -1,13 +1,15 @@
-"""Armazenamento: Supabase (Postgres via REST), Upstash Redis via REST ou arquivo local no desenvolvimento.
+"""Armazenamento: Supabase (Postgres via REST), Upstash Redis via REST ou SQLite no servidor local.
 
 As três implementações têm a mesma interface (subconjunto de comandos Redis). Variáveis aceitas:
   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY)  -> Supabase (tabelas de supabase/arena.sql)
   KV_REST_API_URL / KV_REST_API_TOKEN ou UPSTASH_REDIS_REST_URL / _TOKEN -> Upstash Redis
-Sem nenhuma, usa um JSON em ARENA_ARQUIVO_LOCAL (padrão: /tmp/meupia-arena.json) — só para dev/testes.
+Sem nenhuma, usa o SQLite em ARENA_SQLITE (padrão: /tmp/meupia-arena.sqlite3): servidor local, pacote offline
+e testes. Na Vercel o arquivo não sobrevive entre execuções, por isso em produção ela exige o Supabase.
 """
-import fcntl
+import contextlib
 import json
 import os
+import sqlite3
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -135,6 +137,21 @@ class SupabaseRest:
                 break
         return out
 
+    def tudo(self):
+        """Todas as linhas, para copiar o banco: (hashes, listas) no formato de Sqlite.carregar."""
+        def ler(tabela, select, ordem):
+            out, offset = [], 0
+            while True:
+                linhas = self._req("GET", tabela, {"select": select, "order": ordem,
+                                                   "offset": offset, "limit": self.PAGINA}) or []
+                out += linhas
+                offset += len(linhas)
+                if len(linhas) < self.PAGINA:
+                    return out
+        hashes = [(l["chave"], l["campo"], l["valor"]) for l in ler("arena_hash", "chave,campo,valor", "chave,campo")]
+        listas = [(l["chave"], l["valor"]) for l in ler("arena_lista", "chave,valor", "id.asc")]
+        return hashes, listas
+
     def apagar(self, *chaves):
         if not chaves:
             return
@@ -143,60 +160,123 @@ class SupabaseRest:
             self._req("DELETE", tabela, {"chave": lista}, prefer="return=minimal")
 
 
-class Local:
-    """Mesma interface, num arquivo JSON com lock. Não use em produção."""
+# Mesmas tabelas do supabase/arena.sql
+ESQUEMA_SQLITE = """
+create table if not exists arena_hash (
+  chave text not null,
+  campo text not null,
+  valor text not null,
+  primary key (chave, campo)
+) without rowid;
+create table if not exists arena_lista (
+  id integer primary key autoincrement,
+  chave text not null,
+  valor text not null,
+  criado text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+create index if not exists arena_lista_chave_id on arena_lista (chave, id desc);
+"""
+
+
+class Sqlite:
+    """Mesma interface, num arquivo SQLite (modo WAL: leituras não esperam as gravações). Uma conexão por
+    operação, para valer entre as threads do servidor local. Guarda código-fonte e gabaritos: o arquivo é
+    criado só com permissão do dono e nunca vai para o repositório."""
 
     def __init__(self, caminho):
         self.caminho = caminho
+        pasta = os.path.dirname(caminho)
+        if pasta:
+            os.makedirs(pasta, exist_ok=True)
+        os.close(os.open(caminho, os.O_CREAT | os.O_RDWR, 0o600))
+        with self._con() as c:
+            c.execute("pragma journal_mode = wal")
+            c.executescript(ESQUEMA_SQLITE)
 
-    def _tx(self, fn):
-        with open(self.caminho, "a+", encoding="utf-8") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
-            f.seek(0)
-            bruto = f.read()
-            dados = json.loads(bruto) if bruto.strip() else {}
-            r = fn(dados)
-            f.seek(0)
-            f.truncate()
-            json.dump(dados, f)
-            return r
+    @contextlib.contextmanager
+    def _con(self):
+        con = sqlite3.connect(self.caminho, timeout=10, isolation_level=None)
+        try:
+            yield con
+        finally:
+            con.close()
+
+    @contextlib.contextmanager
+    def _tx(self):
+        with self._con() as c:
+            c.execute("begin immediate")
+            try:
+                yield c
+            except BaseException:
+                c.execute("rollback")
+                raise
+            c.execute("commit")
 
     def hgetall(self, chave):
-        return self._tx(lambda d: dict(d.get(chave, {})))
+        with self._con() as c:
+            return dict(c.execute("select campo, valor from arena_hash where chave = ?", (chave,)))
 
     def hget(self, chave, campo):
-        return self._tx(lambda d: d.get(chave, {}).get(campo))
+        with self._con() as c:
+            linha = c.execute("select valor from arena_hash where chave = ? and campo = ?", (chave, campo)).fetchone()
+        return linha[0] if linha else None
 
     def hset(self, chave, campo, valor):
-        self._tx(lambda d: d.setdefault(chave, {}).__setitem__(campo, str(valor)))
+        with self._con() as c:
+            c.execute("insert into arena_hash (chave, campo, valor) values (?, ?, ?) "
+                      "on conflict (chave, campo) do update set valor = excluded.valor", (chave, campo, str(valor)))
 
     def hsetnx(self, chave, campo, valor):
-        def f(d):
-            h = d.setdefault(chave, {})
-            if campo in h:
-                return False
-            h[campo] = str(valor)
-            return True
-        return self._tx(f)
+        with self._con() as c:
+            cur = c.execute("insert into arena_hash (chave, campo, valor) values (?, ?, ?) "
+                            "on conflict (chave, campo) do nothing", (chave, campo, str(valor)))
+        return cur.rowcount == 1
 
     def hdel(self, chave, campo):
-        self._tx(lambda d: d.get(chave, {}).pop(campo, None))
+        with self._con() as c:
+            c.execute("delete from arena_hash where chave = ? and campo = ?", (chave, campo))
 
     def hincrby(self, chave, campo, n=1):
-        def f(d):
-            h = d.setdefault(chave, {})
-            h[campo] = str(int(h.get(campo, 0)) + n)
-            return int(h[campo])
-        return self._tx(f)
+        # sem RETURNING: o SQLite do Ubuntu 20.04 (3.31) não tem
+        with self._tx() as c:
+            c.execute("insert into arena_hash (chave, campo, valor) values (?, ?, ?) on conflict (chave, campo) "
+                      "do update set valor = cast(cast(valor as integer) + ? as text)", (chave, campo, str(n), n))
+            return int(c.execute("select valor from arena_hash where chave = ? and campo = ?",
+                                 (chave, campo)).fetchone()[0])
 
     def lpush(self, chave, valor):
-        self._tx(lambda d: d.setdefault(chave, []).insert(0, valor))
+        with self._con() as c:
+            c.execute("insert into arena_lista (chave, valor) values (?, ?)", (chave, valor))
 
     def lrange(self, chave, ini, fim):
-        return self._tx(lambda d: d.get(chave, [])[ini: None if fim == -1 else fim + 1])
+        """Como no Redis: índice 0 = mais recente; fim = -1 vai até o final."""
+        limite = -1 if fim == -1 else max(0, fim - ini + 1)
+        with self._con() as c:
+            return [v for (v,) in c.execute("select valor from arena_lista where chave = ? order by id desc "
+                                            "limit ? offset ?", (chave, limite, ini))]
 
     def apagar(self, *chaves):
-        self._tx(lambda d: [d.pop(c, None) for c in chaves])
+        if not chaves:
+            return
+        marcas = ",".join("?" * len(chaves))
+        with self._tx() as c:
+            for tabela in ("arena_hash", "arena_lista"):
+                c.execute(f"delete from {tabela} where chave in ({marcas})", chaves)
+
+    def vazio(self):
+        with self._con() as c:
+            return not any(c.execute(f"select 1 from {t} limit 1").fetchone() for t in ("arena_hash", "arena_lista"))
+
+    def carregar(self, hashes, listas, substituir=False):
+        """Cópia de outro banco numa transação só: hashes = [(chave, campo, valor)], listas = [(chave, valor)]
+        da mais antiga para a mais recente (como foram gravadas)."""
+        with self._tx() as c:
+            if substituir:
+                c.execute("delete from arena_hash")
+                c.execute("delete from arena_lista")
+            c.executemany("insert into arena_hash (chave, campo, valor) values (?, ?, ?) "
+                          "on conflict (chave, campo) do update set valor = excluded.valor", hashes)
+            c.executemany("insert into arena_lista (chave, valor) values (?, ?)", listas)
 
 
 def em_producao():
@@ -216,7 +296,7 @@ def abrir():
         # Na Vercel o /tmp é efêmero e separado por instância: perderia submissões e mostraria os
         # desafios e as equipes de exemplo. Melhor falhar alto.
         raise RuntimeError("Banco não configurado em produção: defina SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY")
-    return Local(os.environ.get("ARENA_ARQUIVO_LOCAL", "/tmp/meupia-arena.json"))
+    return Sqlite(os.environ.get("ARENA_SQLITE", "/tmp/meupia-arena.sqlite3"))
 
 
 # Chaves (prefixo permite rodar ensaio e evento no mesmo banco)

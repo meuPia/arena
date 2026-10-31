@@ -3,9 +3,12 @@
 Uso:
   npm run build
   ARENA_MODO=ensaio python scripts/servidor_local.py        # http://localhost:8787
-Sem KV_REST_API_URL, os dados ficam em /tmp/meupia-arena.json.
+Sem banco remoto, os dados ficam no SQLite em ARENA_SQLITE (padrão: /tmp/meupia-arena.sqlite3);
+scripts/copiar_supabase.py copia o banco do evento para ele.
+ARENA_DIST troca a pasta servida (o pacote offline usa offline/dist).
 
-Do .env.local, só as variáveis do login da banca (OAUTH_*, ARENA_ROOT, ARENA_URL) são lidas.
+Do .env.local, só as variáveis do login da banca (OAUTH_*, ARENA_ROOT, ARENA_URL) e do modo offline
+(ARENA_MODO, ARENA_SQLITE; caminho relativo = a partir da raiz do repositório) são lidas.
 As do banco (SUPABASE_*, KV_*) ficam de fora de propósito: o servidor local nunca grava no
 banco do evento. Para isso, exporte-as no shell de forma explícita.
 """
@@ -33,8 +36,11 @@ def carregar_env_local():
             nome = nome.removeprefix("export ").strip()
             if not sep or nome.startswith("#"):
                 continue
-            if nome.startswith("OAUTH_") or nome in ("ARENA_ROOT", "ARENA_URL"):
-                os.environ.setdefault(nome, valor.strip().strip("'\""))
+            valor = valor.strip().strip("'\"")
+            if nome == "ARENA_SQLITE":
+                valor = os.path.join(RAIZ, os.path.expanduser(valor))  # absoluto continua absoluto
+            if nome.startswith("OAUTH_") or nome in ("ARENA_ROOT", "ARENA_URL", "ARENA_MODO", "ARENA_SQLITE"):
+                os.environ.setdefault(nome, valor)
 
 
 def _handler(nome):
@@ -50,6 +56,21 @@ def _handler(nome):
 
 
 class Roteador(SimpleHTTPRequestHandler):
+    # Tipos fixos: no Windows o mimetypes lê o registro, que às vezes diz text/plain para .js (o navegador
+    # recusa módulos assim e a página fica em branco) e não conhece .wasm (o Pyodide carrega mais devagar).
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+        ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+        ".json": "application/json", ".wasm": "application/wasm", ".svg": "image/svg+xml",
+        ".woff": "font/woff", ".woff2": "font/woff2", ".zip": "application/zip", ".whl": "application/zip",
+        ".por": "text/plain; charset=utf-8", ".md": "text/markdown; charset=utf-8",
+    }
+
+    def guess_type(self, path):
+        ext = os.path.splitext(str(path))[1].lower()
+        return self.extensions_map.get(ext) or super().guess_type(path)
+
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=DIST, **kw)
 
@@ -79,4 +100,10 @@ if __name__ == "__main__":
     carregar_env_local()
     porta = int(os.environ.get("PORTA", "8787"))
     print(f"Code Arena local em http://localhost:{porta}  (modo: {os.environ.get('ARENA_MODO') or 'horário real'})")
-    ThreadingHTTPServer(("127.0.0.1", porta), Roteador).serve_forever()
+    try:
+        servidor = ThreadingHTTPServer(("127.0.0.1", porta), Roteador)
+    except OSError as e:
+        # EADDRINUSE: 48 no macOS, 98 no Linux, 10048 no Windows
+        sys.exit(f"A porta {porta} já está em uso (outra Arena aberta?). Feche-a ou use outra porta, "
+                 f"ex.: PORTA={porta + 1}.  [{e}]")
+    servidor.serve_forever()

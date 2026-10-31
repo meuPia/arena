@@ -14,3 +14,11 @@ arena/equipes.json
 # Ignore macOS system files
 .DS_Store
 **/.DS_Store
+
+# Pacote offline (scripts/preparar_offline.py): instaladores, Pyodide e build offline
+offline/
+
+# Banco SQLite local (tem desafios reais e código-fonte se copiado do Supabase)
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

@@ -16,7 +16,7 @@ PASTA_EXEMPLOS = os.path.join(RAIZ, "arena", "exemplos")
 def db(tmp_path, monkeypatch):
     for v in ("SUPABASE_URL", "KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"):
         monkeypatch.delenv(v, raising=False)
-    monkeypatch.setenv("ARENA_ARQUIVO_LOCAL", str(tmp_path / "db.json"))
+    monkeypatch.setenv("ARENA_SQLITE", str(tmp_path / "db.sqlite3"))
     arena.limpar_cache()
     yield store.abrir()
     arena.limpar_cache()

@@ -142,6 +142,29 @@ def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
         return {"status": "cooldown", "espera": espera,
                 "mensagem": f"Aguarde {espera} s para submeter este módulo novamente."}
 
+    return _julgar_e_registrar(db, e, d, fonte, participantes, cfg, agora, aceitas)
+
+
+def pontuar(eid, codigo, fonte, db=None, agora=None):
+    """Julga um .por entregue no modo offline (scripts/pontuar_equipe.py) e registra como uma submissão:
+    mesmos juiz, pontos e melhor; sem janela de horário, desbloqueio, cooldown nem participantes.
+    `agora` = horário do arquivo (desempate do placar)."""
+    db = db or store.abrir()
+    agora = agora if agora is not None else time.time()
+    e = arena.equipes(db).get(eid)
+    if not e:
+        raise Erro(404, "Equipe não encontrada.")
+    cfg, todos = arena.config(db), arena.desafios(db)
+    d = todos.get(codigo)
+    if not d:
+        raise Erro(404, f"Desafio {codigo} não encontrado.")
+    if not isinstance(fonte, str) or not fonte.strip():
+        raise Erro(400, "Código vazio.")
+    return _julgar_e_registrar(db, e, d, fonte, ["entrega offline"], cfg, agora, _aceitas(db, eid))
+
+
+def _julgar_e_registrar(db, e, d, fonte, participantes, cfg, agora, aceitas):
+    eid, codigo = e["id"], d["codigo"]
     seg = arena.segredos(db, codigo)
     if not seg or not seg.get("testesExtras", "").strip():
         # Sem bateria extra o juiz daria "completo" com 0 de 0: nunca julgar assim.
