@@ -1,5 +1,5 @@
-"""Entregas do modo offline: os .por que as equipes salvam na IDE (src/arena/entrega.js), pontuados pela banca
-pelo painel (aba Entregas, admin.pontuar_entregas) ou pelo terminal (scripts/pontuar_equipe.py). Funções puras."""
+"""Entregas por arquivo (plano B): os .por que as equipes entregam à banca, pontuados pelo painel (aba Entregas,
+admin.pontuar_entregas). Funções puras."""
 import os
 import re
 import unicodedata

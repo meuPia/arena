@@ -146,7 +146,7 @@ def submeter(eid, codigo, fonte, participantes, db=None, agora=None):
 
 
 def pontuar(eid, codigo, fonte, db=None, agora=None):
-    """Julga um .por entregue no modo offline (scripts/pontuar_equipe.py) e registra como uma submissão:
+    """Julga um .por entregue por arquivo (aba Entregas do painel) e registra como uma submissão:
     mesmos juiz, pontos e melhor; sem janela de horário, desbloqueio, cooldown nem participantes.
     `agora` = horário do arquivo (desempate do placar)."""
     db = db or store.abrir()
@@ -160,7 +160,7 @@ def pontuar(eid, codigo, fonte, db=None, agora=None):
         raise Erro(404, f"Desafio {codigo} não encontrado.")
     if not isinstance(fonte, str) or not fonte.strip():
         raise Erro(400, "Código vazio.")
-    return _julgar_e_registrar(db, e, d, fonte, ["entrega offline"], cfg, agora, _aceitas(db, eid))
+    return _julgar_e_registrar(db, e, d, fonte, ["entrega por arquivo"], cfg, agora, _aceitas(db, eid))
 
 
 def _julgar_e_registrar(db, e, d, fonte, participantes, cfg, agora, aceitas):

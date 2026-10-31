@@ -5,10 +5,9 @@ Uso:
   ARENA_MODO=ensaio python scripts/servidor_local.py        # http://localhost:8787
 Sem banco remoto, os dados ficam no SQLite em ARENA_SQLITE (padrão: /tmp/meupia-arena.sqlite3);
 scripts/copiar_supabase.py copia o banco do evento para ele.
-ARENA_DIST troca a pasta servida (o pacote offline usa offline/dist).
 
-Do .env.local, só as variáveis do login da banca (OAUTH_*, ARENA_ROOT, ARENA_URL) e do modo offline
-(ARENA_MODO, ARENA_SQLITE; caminho relativo = a partir da raiz do repositório) são lidas.
+Do .env.local, só as variáveis do login da banca (OAUTH_*, ARENA_ROOT, ARENA_URL) e ARENA_SQLITE (caminho
+relativo = a partir da raiz do repositório) são lidas.
 As do banco (SUPABASE_*, KV_*) ficam de fora de propósito: o servidor local nunca grava no
 banco do evento. Para isso, exporte-as no shell de forma explícita.
 """
@@ -39,7 +38,7 @@ def carregar_env_local():
             valor = valor.strip().strip("'\"")
             if nome == "ARENA_SQLITE":
                 valor = os.path.join(RAIZ, os.path.expanduser(valor))  # absoluto continua absoluto
-            if nome.startswith("OAUTH_") or nome in ("ARENA_ROOT", "ARENA_URL", "ARENA_MODO", "ARENA_SQLITE"):
+            if nome.startswith("OAUTH_") or nome in ("ARENA_ROOT", "ARENA_URL", "ARENA_SQLITE"):
                 os.environ.setdefault(nome, valor)
 
 

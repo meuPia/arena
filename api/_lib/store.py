@@ -3,8 +3,8 @@
 As três implementações têm a mesma interface (subconjunto de comandos Redis). Variáveis aceitas:
   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY)  -> Supabase (tabelas de supabase/arena.sql)
   KV_REST_API_URL / KV_REST_API_TOKEN ou UPSTASH_REDIS_REST_URL / _TOKEN -> Upstash Redis
-Sem nenhuma, usa o SQLite em ARENA_SQLITE (padrão: /tmp/meupia-arena.sqlite3): servidor local, pacote offline
-e testes. Na Vercel o arquivo não sobrevive entre execuções, por isso em produção ela exige o Supabase.
+Sem nenhuma, usa o SQLite em ARENA_SQLITE (padrão: /tmp/meupia-arena.sqlite3): servidor local e testes.
+Na Vercel o arquivo não sobrevive entre execuções, por isso em produção ela exige o Supabase.
 """
 import contextlib
 import json

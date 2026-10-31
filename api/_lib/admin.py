@@ -30,7 +30,7 @@ PERMISSOES = {
     "validar_todos": "admin", "exportar_desafios": "admin", "importar_desafios": "admin",
     # horário do evento: juiz vê, admin altera
     "evento": "juiz", "salvar_evento": "admin",
-    # modo offline: a banca pontua os .por que as equipes salvaram
+    # plano B: a banca pontua os .por entregues por arquivo
     "pontuar_entregas": "juiz",
 }
 # Únicas ações aceitas por GET: não gravam nada (nem auditoria). O resto é só POST, que exige JSON e mesma
@@ -598,10 +598,8 @@ MAX_ENTREGAS = 60
 
 
 def _pontuar_entregas(autor, dados, db):
-    """Modo offline: julga os .por de uma equipe (juiz real, testes de exemplo + extras) e grava como submissões.
+    """Plano B: julga os .por de uma equipe (juiz real, testes de exemplo + extras) e grava como submissões.
     dados = {equipe: id, arquivos: [{nome, texto, modificado (ms, do navegador)}], limpar: bool}."""
-    if not arena.modo_offline():
-        raise Erro(403, "A pontuação de arquivos .por só existe no modo offline.")
     e = arena.equipes(db).get(str(dados.get("equipe") or ""))
     if not e:
         raise Erro(404, "Escolha a equipe.")
